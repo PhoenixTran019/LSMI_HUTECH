@@ -81,7 +81,6 @@ Create Table DepartmentStaffs
 (
 	StaffID nvarchar(155) Primary Key,
 	UserID nvarchar(155) Foreign key (UserID) References Users (UserID),
-	SchoolID nvarchar(155) Foreign Key (SchoolID) References Departments (DepartID),
 	Majors nvarchar (155) Foreign Key References Majors (MajorID),
 	FirstName nvarchar(20),
 	LastName nvarchar(50),
@@ -93,6 +92,16 @@ Create Table DepartmentStaffs
 	Image nvarchar(555),
 	Status nvarchar(100),
 	HireDate DateTime
+);
+go
+
+Create Table StaffDeparts
+(
+	StaffID nvarchar(155) not null,
+	DepartID nvarchar(155) not null,
+	Primary Key (StaffID, DepartID),
+	FOREIGN KEY (StaffID) REFERENCES DepartmentStaffs(StaffID),
+    FOREIGN KEY (DepartID) REFERENCES Departments(DepartID)
 );
 go
 
