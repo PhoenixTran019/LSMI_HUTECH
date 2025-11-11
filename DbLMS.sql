@@ -100,7 +100,8 @@ Create Table Classes
 (
 	ClassID nvarchar (155) Primary Key,
 	ClassName nvarchar (50),
-	ClassMajor nvarchar (155) Foreign Key References Majors (MajorID)
+	ClassMajor nvarchar (155) Foreign Key References Majors (MajorID),
+	Course nvarchar(15)
 );
 go
 
