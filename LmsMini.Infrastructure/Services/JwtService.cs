@@ -24,7 +24,7 @@
 
 using LmsMini.Application.Auth;
 using LmsMini.Application.Interfaces;
-using LmsMini.Domain.Domain.Entities;
+using LmsMini.Domain.Models;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace LmsMini.Infrastructure.Domain.Entities;
+namespace LmsMini.Domain.Models;
 
 public partial class DepartmentStaff
 {
@@ -14,8 +14,6 @@ public partial class DepartmentStaff
     public string? FirstName { get; set; }
 
     public string? LastName { get; set; }
-
-    public string? StaffRole { get; set; }
 
     public DateOnly? Dob { get; set; }
 
@@ -30,6 +28,8 @@ public partial class DepartmentStaff
     public string? Status { get; set; }
 
     public DateTime? HireDate { get; set; }
+
+    public string? StaffRole { get; set; }
 
     public virtual ICollection<ActivityLog> ActivityLogs { get; set; } = new List<ActivityLog>();
 
@@ -69,11 +69,11 @@ public partial class DepartmentStaff
 
     public virtual ICollection<Project> Projects { get; set; } = new List<Project>();
 
-    public virtual ICollection<StaffDepart> StaffDeparts { get; set; } = new List<StaffDepart>();
-
     public virtual Role? StaffRoleNavigation { get; set; }
 
     public virtual User? User { get; set; }
 
     public virtual ICollection<WeeklyMeeting> WeeklyMeetings { get; set; } = new List<WeeklyMeeting>();
+
+    public virtual ICollection<StaffDepart> StaffDeparts { get; set; } = new List<StaffDepart>();
 }

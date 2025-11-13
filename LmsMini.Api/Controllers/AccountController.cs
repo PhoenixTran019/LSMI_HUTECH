@@ -1,4 +1,4 @@
-﻿using LmsMini.Domain.Domain.Entities;
+﻿using LmsMini.Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;

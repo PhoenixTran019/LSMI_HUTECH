@@ -3,7 +3,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 
 using LmsMini.Application.Interfaces;
-using LmsMini.Domain.Domain.Entities;
+using LmsMini.Domain.Models;
 
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +11,7 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using Microsoft.AspNetCore.Identity;
 using LmsMini.Infrastructure.Services;
+using LmsMini.Infrastructure.Services.Classrooms;
 
 // ======================================================================
 // 1. Khởi tạo Serilog (chạy trước khi tạo `builder` để bắt log khởi tạo)
@@ -54,6 +55,7 @@ builder.Services.AddMediatR(AppDomain.CurrentDomain.GetAssemblies());
 // ======================================================================
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IStudentService, StudentService>();
+builder.Services.AddScoped<IClassroomService, ClassroomService>();
 
 // ======================================================================
 // 3.6 Đăng ký FluentValidation

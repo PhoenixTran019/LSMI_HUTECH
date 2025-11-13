@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using LmsMini.Application.Interfaces;
-using LmsMini.Domain.Domain.Entities;
+using LmsMini.Domain.Models;
 using LmsMini.Application.DTOs;
 using Microsoft.EntityFrameworkCore;
 
