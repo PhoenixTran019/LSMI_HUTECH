@@ -1,4 +1,6 @@
-﻿Drop Database DbLMS;
+﻿Chi tiết README tại: https://docs.google.com/document/d/12MqsnLSY7YkCzzbzFKreHYH1p6qxAGpDagFcmQuPZnY/edit?usp=sharing
+Database LMS
+Drop Database DbLMS;
 Create database DbLMS;
 go
 
@@ -96,11 +98,23 @@ Create Table DepartmentStaffs
 );
 go
 
+Create Table StaffDeparts
+(
+	StaffID nvarchar(155) not null,
+	DepartID nvarchar(155) not null,
+	Primary Key (StaffID, DepartID),
+	FOREIGN KEY (StaffID) REFERENCES DepartmentStaffs(StaffID),
+    FOREIGN KEY (DepartID) REFERENCES Departments(DepartID)
+);
+go
+
 Create Table Classes
 (
 	ClassID nvarchar (155) Primary Key,
 	ClassName nvarchar (50),
-	ClassMajor nvarchar (155) Foreign Key References Majors (MajorID)
+	ClassMajor nvarchar (155) Foreign Key References Majors (MajorID),
+	DepartID nvarchar(155) Foreign Key References Departments (DepartID)
+	Course nvarchar(15)
 );
 go
 
@@ -162,9 +176,7 @@ go
 Create Table Lessons
 (
 	LessonID nvarchar(155) Primary Key, --Using UUIDv7
-	SubID nvarchar(155) Foreign Key (SubID) References Subjects (SubID),
 	CreateBy nvarchar(155) Foreign Key (CreateBy) References DepartmentStaffs (StaffID),
-	DepartID nvarchar(155) Foreign Key References Departments (DepartID),
 	ClassroomID nvarchar(155) Foreign Key References Classrooms (ClassroomID),
 	Title nvarchar(255),
 	Content nvarchar(Max),
@@ -237,11 +249,13 @@ Go
 Create Table Attendances
 (
 	AttendanceID nvarchar(155) Primary Key,
-	LessonID nvarchar(155) Foreign Key References Lessons (LessonID),
 	StudentID nvarchar(155) Foreign Key References  Students (StudentID),
+	ClassroomID nvarchar(155) Foreign Key References Classrooms (ClassroomID),
 	LecturerID nvarchar(155) Foreign Key References DepartmentStaffs (StaffID),
 	Status Nvarchar(25), --P/A/AP
-	CheckInTime DateTime2 Default GetDate()
+	CheckInTime DateTime2 Default GetDate(),
+	StartTime DateTime2 Default GetDate(),
+	EndTime DateTime2
 );
 Go
 
