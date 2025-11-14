@@ -7,9 +7,9 @@ public partial class Attendance
 {
     public string AttendanceId { get; set; } = null!;
 
-    public string? LessonId { get; set; }
-
     public string? StudentId { get; set; }
+
+    public string? ClassroomId { get; set; }
 
     public string? LecturerId { get; set; }
 
@@ -17,9 +17,12 @@ public partial class Attendance
 
     public DateTime? CheckInTime { get; set; }
 
+    public DateTime? StartTime { get; set; }
+    public DateTime? EndTime { get; set; }
+
     public virtual DepartmentStaff? Lecturer { get; set; }
 
-    public virtual Lesson? Lesson { get; set; }
+    public virtual Classroom? Classroom { get; set; }
 
     public virtual Student? Student { get; set; }
 }

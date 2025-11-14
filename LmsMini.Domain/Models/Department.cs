@@ -26,7 +26,6 @@ public partial class Department
     public virtual ICollection<ActivityLog> ActivityLogs { get; set; } = new List<ActivityLog>();
 
     public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
-    public virtual ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
 
     public virtual ICollection<SchoolYear> SchoolYears { get; set; } = new List<SchoolYear>();
 

@@ -21,7 +21,5 @@ public partial class Subject
 
     public virtual Department? Depart { get; set; }
 
-    public virtual ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
-
     public virtual Major? SubMajorNavigation { get; set; }
 }

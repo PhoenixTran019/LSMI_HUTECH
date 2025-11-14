@@ -158,5 +158,52 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
             return result;
         }
+
+        //Service to add member to classroom
+        public async Task<bool> AddMemberToClassroomAsync (string classroomId, string userId, string role)
+        {
+            var classroom = await _context.Classrooms.FindAsync(classroomId);
+            if (classroom == null) return false;
+
+            bool isLecturer = role == "Teacher";
+
+            var exists = await _context.ClassroomMembers
+                .AnyAsync(m => m.ClassroomId == classroomId &&
+                                ((isLecturer && m.LecturerId == userId) || (!isLecturer && m.StudentId == userId)));
+
+            if (exists) return false; // Member already exists -> do not add again
+
+            var member = new ClassroomMember
+            {
+                MemberId = Uuidv7Generator.NewUuid7().ToString(),
+                ClassroomId = classroomId,
+                RoleInClass = role,
+                LecturerId = isLecturer ? userId : null,
+                StudentId = isLecturer ? null : userId,
+            };
+            await _context.ClassroomMembers.AddAsync(member);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        //Service to update role
+        public async Task<bool> UpdateMemberRoleAsync (string classroomId, string userId, string newRole)
+        {
+            bool isLecturer = newRole == "Teacher";
+
+            var member = await _context.ClassroomMembers
+                .FirstOrDefaultAsync(m => m.ClassroomId == classroomId &&
+                                          ((m.LecturerId == userId)|| (m.StudentId == userId)));
+
+            if (member == null) return false;
+
+            member.RoleInClass = newRole;
+            member.LecturerId = isLecturer ? userId : null;
+            member.StudentId = isLecturer? null : userId;
+
+            _context.ClassroomMembers.Update(member);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

@@ -4,6 +4,7 @@ using LmsMini.Domain.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using System.Security.Claims;
 
 
@@ -22,6 +23,7 @@ namespace LmsMini.Api.Controllers
             _context = context;
         }
 
+        //Create Classroom
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpPost("create-classroom")]
         public async Task<IActionResult> CreateClassroom([FromBody] CreateClassroomDto dto)
@@ -38,6 +40,8 @@ namespace LmsMini.Api.Controllers
             return Ok("Create Classroom Success!");
         }
 
+
+        //View Classroom
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpGet("dashboard-classrooms")]
         public async Task<IActionResult> GetClassromDashboard([FromQuery] ClassroomFilterDto filter)
@@ -65,5 +69,40 @@ namespace LmsMini.Api.Controllers
             return Ok(result);
         }
 
+        //Add member by hand
+        [Authorize(Roles = "Staff,Lecturer,Admin")]
+        [HttpPost("classroom/{classroomId}/add-member")]
+        public async Task<IActionResult> AddMember(string classroomId, [FromBody]AddMemberDto dto)
+        {
+            var currentUserId = User.FindFirst (ClaimTypes.NameIdentifier)?.Value;
+
+            var isTeacher = await _context.ClassroomMembers
+                .AnyAsync(m => m.ClassroomId == classroomId &&
+                               m.LecturerId == currentUserId &&
+                               m.RoleInClass == "Teacher");
+
+            if(!isTeacher) return Forbid("Only teacher can add member to class.");
+
+            var success = await _classroomService.AddMemberToClassroomAsync(classroomId, dto.UserId, dto.Role);
+            return success ? Ok() : BadRequest("User already exists in classroom.");
+        }
+
+        //chage roll in class
+        [Authorize(Roles = "Staff,Lecturer,Admin")]
+        [HttpPut("classroom/{classroomId}/update-role")]
+        public async Task<IActionResult> UpdateRole (string classroomId, [FromBody] UpdateRoleDto dto)
+        {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var isTeacher = await _context.ClassroomMembers
+                .AnyAsync(m => m.ClassroomId == classroomId &&
+                               m.LecturerId == currentUserId &&
+                               m.RoleInClass == "Teacher");
+
+            if (!isTeacher) return Forbid("Only Teachers can update roles.");
+
+            var succes = await _classroomService.UpdateMemberRoleAsync(classroomId, dto.UserId, dto.NewRole);
+            return succes ? Ok() : BadRequest("Member not found");
+        }
     }
 }

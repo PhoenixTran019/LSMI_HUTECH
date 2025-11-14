@@ -205,12 +205,13 @@ public partial class LmsDbContext : DbContext
                 .HasMaxLength(155)
                 .HasColumnName("AttendanceID");
             entity.Property(e => e.CheckInTime).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.StartTime).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.LecturerId)
                 .HasMaxLength(155)
                 .HasColumnName("LecturerID");
-            entity.Property(e => e.LessonId)
+            entity.Property(e => e.ClassroomId)
                 .HasMaxLength(155)
-                .HasColumnName("LessonID");
+                .HasColumnName("ClassroomID");
             entity.Property(e => e.Status).HasMaxLength(25);
             entity.Property(e => e.StudentId)
                 .HasMaxLength(155)
@@ -220,9 +221,9 @@ public partial class LmsDbContext : DbContext
                 .HasForeignKey(d => d.LecturerId)
                 .HasConstraintName("FK__Attendanc__Lectu__03F0984C");
 
-            entity.HasOne(d => d.Lesson).WithMany(p => p.Attendances)
-                .HasForeignKey(d => d.LessonId)
-                .HasConstraintName("FK__Attendanc__Lesso__02084FDA");
+            entity.HasOne(d => d.Classroom).WithMany(p => p.Attendances)
+                .HasForeignKey(d => d.ClassroomId)
+                .HasConstraintName("FK__Attendanc__Class__02FC7412");
 
             entity.HasOne(d => d.Student).WithMany(p => p.Attendances)
                 .HasForeignKey(d => d.StudentId)
@@ -678,12 +679,7 @@ public partial class LmsDbContext : DbContext
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
             entity.Property(e => e.CreateBy).HasMaxLength(155);
-            entity.Property(e => e.DepartId)
-                .HasMaxLength(155)
-                .HasColumnName("DepartID");
-            entity.Property(e => e.SubId)
-                .HasMaxLength(155)
-                .HasColumnName("SubID");
+           
             entity.Property(e => e.Title).HasMaxLength(255);
 
             entity.HasOne(d => d.Classroom).WithMany(p => p.Lessons)
@@ -693,14 +689,6 @@ public partial class LmsDbContext : DbContext
             entity.HasOne(d => d.CreateByNavigation).WithMany(p => p.Lessons)
                 .HasForeignKey(d => d.CreateBy)
                 .HasConstraintName("FK__Lessons__CreateB__68487DD7");
-
-            entity.HasOne(d => d.Depart).WithMany(p => p.Lessons)
-                .HasForeignKey(d => d.DepartId)
-                .HasConstraintName("FK__Lessons__DepartI__693CA210");
-
-            entity.HasOne(d => d.Sub).WithMany(p => p.Lessons)
-                .HasForeignKey(d => d.SubId)
-                .HasConstraintName("FK__Lessons__SubID__6754599E");
         });
 
         modelBuilder.Entity<LessonFile>(entity =>
