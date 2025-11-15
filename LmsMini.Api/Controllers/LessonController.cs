@@ -38,5 +38,27 @@ namespace LmsMini.Api.Controllers
             var assignId = await _lessonService.CreateAssignmentWithFilesAsync(dto, teacherId, _env.WebRootPath);
             return Ok(new { AssignmentID = assignId });
         }
+
+        // Get lesson detail
+        [Authorize (Roles = "Staff,Lecturer,Admin")]
+        [HttpGet("{lessonId}/detail")]
+        public async Task<IActionResult> GetLessonDetail(string lessonId)
+        {
+            var detail = await _lessonService.GetLessonDetailAsync(lessonId);
+            if (detail == null) return NotFound("Doesn't find the lesson!");
+            return Ok(detail);
+        }
+
+        //Get Assignment for Lec/Staff/Admin
+        [Authorize (Roles = "Staff,Lecturer,Admin")]
+        [HttpGet ("{id}/detail")]
+        public async Task<IActionResult> StaffGetAssignmentDetail(string id)
+        {
+            var result = _lessonService.StaffGetAssignmentDetailAysnc(id);
+            if (result == null) return NotFound("Doesn't found Assignment");
+
+            return Ok(result);
+        }
+
     }
 }
