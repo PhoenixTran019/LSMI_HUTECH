@@ -205,5 +205,36 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             await _context.SaveChangesAsync();
             return true;
         }
+
+        //Service to get overview of classroom
+        public async Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId)
+        {
+            var lesson = await _context.Lessons
+                .Where(l => l.ClassroomId == classroomId)
+                .Select(l => new LessonViewDto
+                {
+                    LessonId = l.LessonId,
+                    Title = l.Title,
+                    CreateAt = l.CreateAt,
+                }).ToListAsync();
+
+            var assignment = await _context.Assignments
+                .Where(a => a.ClassroomId == classroomId)
+                .Select(a => new AssignmentViewDto
+                {
+                    AssignId = a.AssignId,
+                    Title = a.Title,
+                    Deadline = a.Deadline,
+                    DeadlineStatus = a.Deadline > DateTime.UtcNow ? "Valid" : "Overdue"
+
+                }).ToListAsync();
+
+            return new ClassroomOverviewDto
+            {
+                ClassroomId = classroomId,
+                Lessons = lesson,
+                Assignments = assignment
+            };
+        }
     }
 }

@@ -16,6 +16,7 @@ public partial class Submission
     public string? FeedBack { get; set; }
 
     public double? Grade { get; set; }
+    public string? SubmitType { get; set; }
 
     public virtual Assignment? Assign { get; set; }
 

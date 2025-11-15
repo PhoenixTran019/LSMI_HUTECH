@@ -1188,6 +1188,7 @@ public partial class LmsDbContext : DbContext
                 .HasMaxLength(155)
                 .HasColumnName("AssignID");
             entity.Property(e => e.FeedBack).HasMaxLength(255);
+            entity.Property(e => e.SubmitType).HasMaxLength(55);
             entity.Property(e => e.StudentId)
                 .HasMaxLength(155)
                 .HasColumnName("StudentID");

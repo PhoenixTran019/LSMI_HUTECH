@@ -56,6 +56,7 @@ builder.Services.AddMediatR(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<IClassroomService, ClassroomService>();
+builder.Services.AddScoped<ILessonService, LessonService>(); 
 
 // ======================================================================
 // 3.6 Đăng ký FluentValidation

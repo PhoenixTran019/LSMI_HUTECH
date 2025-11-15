@@ -104,5 +104,15 @@ namespace LmsMini.Api.Controllers
             var succes = await _classroomService.UpdateMemberRoleAsync(classroomId, dto.UserId, dto.NewRole);
             return succes ? Ok() : BadRequest("Member not found");
         }
+
+        //Get view  lesson and assignment in classroom
+        [Authorize(Roles = "Staff,Lecturer,Admin")]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetClassroomOverview (string id)
+        {
+            var result = await _classroomService.GetOverviewAsync(id);
+            return Ok(result);
+        }
+
     }
 }

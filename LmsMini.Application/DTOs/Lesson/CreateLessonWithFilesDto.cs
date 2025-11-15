@@ -10,12 +10,10 @@ namespace LmsMini.Application.DTOs.Lesson
 {
     public class CreateLessonWithFilesDto
     {
-        public string SubID { get; set; }
-        public string DepartID { get; set; }
-        public string ClassroomID { get; set; }
-        public string SubjectName { get; set; } //Using to set Name for Folder
-        public string Title { get; set; }
-        public string Content { get; set; }
+        public string ClassrooomID { get; set; } //Classroom ID
+        public string ClassName { get; set; } //using to set nane for folder classroom
+        public string LessonTitle { get; set; } //Using to set naeme for folder lesson
+        public string Content { get; set; } //Lesson content/description
 
         public List<IFormFile> Files { get; set; } //File upload from form
     }

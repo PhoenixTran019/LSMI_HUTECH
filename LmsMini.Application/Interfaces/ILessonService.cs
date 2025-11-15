@@ -10,6 +10,8 @@ namespace LmsMini.Application.Interfaces
 {
     public interface ILessonService
     {
-        Task<bool> CreateLessonWithFilesAsync(CreateLessonWithFilesDto dto, string staffId, string webRootPath);
+        Task<string> CreateLessonWithFilesAsync(CreateLessonWithFilesDto dto, string staffId, string webRootPath);
+
+        Task<string> CreateAssignmentWithFilesAsync (CreateAssigmentWithFilesDto dto, string TeacherId, string webRootPath);
     }
 }

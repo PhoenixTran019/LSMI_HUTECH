@@ -230,6 +230,7 @@ Create Table Submissions
 	StudentID nvarchar(155) Foreign Key (StudentID) References Students (StudentID),
 	SubmitAt DateTime Default GetDate(),
 	FeedBack nvarchar(255),
+	SubmitType nvarchar(55),
 	Grade float
 );
 Go
