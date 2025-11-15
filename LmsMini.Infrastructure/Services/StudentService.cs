@@ -1,4 +1,4 @@
-﻿using LmsMini.Domain.Domain.Entities;
+﻿using LmsMini.Domain.Models;
 using LmsMini.Application.Interfaces;
 using LmsMini.Application.DTOs;
 using Microsoft.EntityFrameworkCore;
@@ -63,7 +63,7 @@ namespace LmsMini.Infrastructure.Services
                 DepartId = dto.DepartID,
                 ClassId = dto.ClassID,
                 StuMajor = dto.StuMajor,
-                EnrollmentDate = dto.EnrollmentDate
+                EnrollmentDate = DateOnly.FromDateTime(dto.EnrollmentDate)
             };
 
             //Write new activities log

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace LmsMini.Infrastructure.Domain.Entities;
+namespace LmsMini.Domain.Models;
 
 public partial class Classroom
 {
@@ -31,5 +31,7 @@ public partial class Classroom
 
     public virtual ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
 
+    public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
+
     public virtual Class? MainClassNavigation { get; set; }
-    }
+}

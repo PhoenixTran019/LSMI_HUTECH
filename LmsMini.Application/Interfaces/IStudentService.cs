@@ -1,5 +1,5 @@
 ﻿using LmsMini.Application.DTOs;
-using LmsMini.Domain.Domain.Entities;
+using LmsMini.Domain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
