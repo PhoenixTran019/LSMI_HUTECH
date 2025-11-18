@@ -1,4 +1,5 @@
 ﻿using LmsMini.Application.DTOs.Classroom;
+using LmsMini.Application.DTOs.Lesson;
 using LmsMini.Application.Models;
 using System;
 using System.Collections.Generic;
@@ -21,5 +22,7 @@ namespace LmsMini.Application.Interfaces
         Task<bool> UpdateMemberRoleAsync (string classroomId, string userId, string newRole);
 
         Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId);
+
+        
     }
 }

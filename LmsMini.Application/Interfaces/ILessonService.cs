@@ -18,5 +18,7 @@ namespace LmsMini.Application.Interfaces
         Task<LessonDetailDto?> GetLessonDetailAsync(string lessonId);
 
         Task<StaffAssignmentDetailDto?> StaffGetAssignmentDetailAysnc (string assigmentId);
+
+        Task<bool> UpdateLessonAsync(string lessonId, UpdateLessonDto dto, string staffId, string webRootPath);
     }
 }

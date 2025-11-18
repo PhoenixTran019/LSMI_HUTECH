@@ -60,5 +60,31 @@ namespace LmsMini.Api.Controllers
             return Ok(result);
         }
 
+        ///<summary>
+        ///Update Lesson (Form-data to sp upload file
+        ///FE need to send Classname and LessonName if want to save file right way
+        ///RemoveFileName: List of original names (FileName) to delete.
+        ///</summary>
+        [Authorize(Roles = "Staff,Lecturer,Admin")]
+        [HttpPut("{id}-updateLesson")]
+        public async Task<IActionResult> UpdateLesson([FromRoute] string id, [FromForm] UpdateLessonDto dto)
+        {
+            //Take StaffID form claim
+            var staffId = User.FindFirst("StaffID")?.Value;
+            if(string.IsNullOrEmpty(staffId))
+                return Unauthorized("Doesn't find StaffId in token");
+
+            //webRootPath to build phisical link
+            var webRootPath = _env.WebRootPath;
+
+            var ok = await _lessonService.UpdateLessonAsync(id, dto, staffId, webRootPath);
+            if (!ok)
+            {
+                return NotFound("Lesson not found!");
+
+                
+            }
+            return NoContent();
+        }
     }
 }

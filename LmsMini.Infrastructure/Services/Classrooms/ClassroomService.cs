@@ -1,9 +1,11 @@
 ﻿using LmsMini.Application.Common.Helpers;
 using LmsMini.Application.DTOs.Classroom;
+using LmsMini.Application.DTOs.Lesson;
 using LmsMini.Application.Interfaces;
 using LmsMini.Application.Models;
 using LmsMini.Domain.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +17,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
     public class ClassroomService : IClassroomService
     {
         private readonly LmsDbContext _context;
+        
 
         public ClassroomService(LmsDbContext context)
         {
@@ -236,5 +239,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 Assignments = assignment
             };
         }
+
+      
     }
 }

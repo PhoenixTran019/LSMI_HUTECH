@@ -87,15 +87,15 @@ namespace LmsMini.Infrastructure.Services
             };
 
             
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opts.Key));
 
             // Tạo SigningCredentials sử dụng HMAC SHA256
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             // Tạo token với issuer, audience, claims (bao gồm role claims), thời hạn và signing credentials
             var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
+                issuer: _opts.Issuer,
+                audience: _opts.Audience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddHours(3),
                 signingCredentials: creds
