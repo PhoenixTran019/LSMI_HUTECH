@@ -1,6 +1,7 @@
 // wire-up serilog, swagger, automapper, mediatR
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using LmsMini.Api.Swagger;
 using LmsMini.Application.Auth;
 using LmsMini.Application.Interfaces;
 using LmsMini.Domain.Models;
@@ -57,7 +58,8 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<IClassroomService, ClassroomService>();
-builder.Services.AddScoped<ILessonService, LessonService>(); 
+builder.Services.AddScoped<ILessonService, LessonService>();
+builder.Services.AddScoped<StudentDropdownSchemaFilter>();
 
 // ======================================================================
 // 3.6 Đăng ký FluentValidation
@@ -97,6 +99,8 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+
+    c.SchemaFilter<StudentDropdownSchemaFilter>();
 });
 
 // ======================================================================

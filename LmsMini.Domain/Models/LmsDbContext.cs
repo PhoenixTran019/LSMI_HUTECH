@@ -1107,6 +1107,7 @@ public partial class LmsDbContext : DbContext
             entity.Property(e => e.Image).HasMaxLength(555);
             entity.Property(e => e.LastName).HasMaxLength(50);
             entity.Property(e => e.Mail).HasMaxLength(155);
+            entity.Property(e => e.Gender).HasMaxLength(5);
             entity.Property(e => e.PhoneEmer).HasMaxLength(20);
             entity.Property(e => e.PhoneNum).HasMaxLength(20);
             entity.Property(e => e.StuMajor).HasMaxLength(155);

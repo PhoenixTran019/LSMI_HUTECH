@@ -24,9 +24,33 @@ namespace LmsMini.Api.Controllers
         [HttpPost("create-lesson")]
         public async Task<IActionResult> CreateLesson([FromForm] CreateLessonWithFilesDto dto)
         {
-            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var lessonId = await _lessonService.CreateLessonWithFilesAsync(dto, staffId, _env.WebRootPath);
-            return Ok(new { LessonID = lessonId });
+            try
+            {
+                // Check Staff Login
+                var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(staffId))
+                    return Unauthorized("Cannot identify staff from token.");
+
+                // Basic validation
+                if (string.IsNullOrWhiteSpace(dto.LessonTitle))
+                    return BadRequest("Lesson title is required.");
+
+                if (string.IsNullOrWhiteSpace(dto.ClassrooomID))
+                    return BadRequest("Classroom ID is required.");
+
+                // Call Service
+                var lessonId = await _lessonService.CreateLessonWithFilesAsync(dto, staffId, _env.WebRootPath);
+
+                return Ok(new { LessonID = lessonId });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    Message = "Error creating lesson",
+                    Detail = ex.Message
+                });
+            }
         }
 
         //Create Assignment with file uploads

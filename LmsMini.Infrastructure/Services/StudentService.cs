@@ -23,68 +23,84 @@ namespace LmsMini.Infrastructure.Services
         }
         public async Task<bool> CreateStudentWithAccountAsync (CreateStudentDto dto, string staffID)
         {
-            //check if StudentID already exists
-            if (await _context.Students.AnyAsync(s => s.StudentId == dto.StudentID) ||
-               await _context.Users.AnyAsync(u => u.Username == dto.StudentID))
-            {
-                return false; // StudentID already exists
-            }
+            if (dto == null) throw new ArgumentNullException(nameof(dto));
 
-            //find roleID Student
+            //Lấy ID thực từ dropdown "ID | Name"
+            string departId = dto.DepartID?.Split(" | ")[0]?.Trim()
+                ?? throw new ArgumentException("DepartID is required");
+
+            string classId = dto.ClassID?.Split(" | ")[0]?.Trim()
+                ?? throw new ArgumentException("ClassID is required");
+
+            string majorId = dto.StuMajor?.Split(" | ")[0]?.Trim()
+                ?? throw new ArgumentException("StuMajor is required");
+
+            // Normalize to not differentiate between upper/lower case
+            var normalizedStudentID = dto.StudentID.Trim().ToLower();
+
+            //Check if StudentID or username already exists
+            bool exists = await _context.Students.AnyAsync(s => s.StudentId.ToLower() == normalizedStudentID) ||
+                          await _context.Users.AnyAsync(u => u.Username.ToLower() == normalizedStudentID);
+            
+            if (exists)
+                return false;
+
+            //Role Student
             var role = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Student");
             if (role == null)
-            {
                 return false;
-            }
 
-            //create UUIDv7 for UserID
-            var userID = Uuidv7Generator.NewUuid7().ToString();
+            //Create UUID v7 for UserId
+            var userId = Uuidv7Generator.NewUuid7().ToString();
 
-            //create UserAccount
+            //Create User and Student entities
             var user = new User
             {
-                UserId = userID,
-                Username = dto.StudentID,
+                UserId = userId,
+                Username = normalizedStudentID,
                 PasswordHash = _jwtService.HashPassword(dto.StudentID),
                 RoleId = role.RoleId,
-                Status = "Active"
+                Status = "Active",
             };
 
-            //Create Student
             var student = new Student
             {
-                StudentId = dto.StudentID,
-                UserId = userID,
+                StudentId = normalizedStudentID,
+                UserId = userId,
                 FirstName = dto.FirstName,
                 LastName = dto.LastName,
                 Dob = dto.DOB,
+                Gender = dto.Gender,
                 PhoneNum = dto.PhoneNumber,
-                Mail = dto.Email,
-                DepartId = dto.DepartID,
-                ClassId = dto.ClassID,
-                StuMajor = dto.StuMajor,
-                EnrollmentDate = DateOnly.FromDateTime(dto.EnrollmentDate)
+                DepartId = departId,
+                ClassId = classId,
+                StuMajor = majorId,
+                EnrollmentDate = dto.EnrollmentDate,
             };
 
-            //Write new activities log
+            //Write new log
             var log = new ActivityLog
             {
                 LogId = Uuidv7Generator.NewUuid7().ToString(),
                 StaffId = staffID,
                 DepartId = dto.DepartID,
-                Action = "Create New Student",
-                TargetTable = "Student",
-                TargetId = student.StudentId,
-                TargetName = $"{student.LastName} {student.FirstName}",
+                Action = "Create new Student and their Account",
+                TargetTable = "Student, Users",
+                TargetId = normalizedStudentID,
+                TargetName = $"{dto.FirstName} {dto.LastName}",
                 Timestap = DateTime.UtcNow
             };
 
+            //Add to DbContext and save changes
             _context.Users.Add(user);
             _context.Students.Add(student);
             _context.ActivityLogs.Add(log);
+
+            //Save into database
             await _context.SaveChangesAsync();
 
             return true;
+
         }
     }
 }

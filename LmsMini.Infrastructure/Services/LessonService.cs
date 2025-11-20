@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -28,62 +29,105 @@ namespace LmsMini.Infrastructure.Services
         //Service to create a new lesson with file uploads
         public async Task<string> CreateLessonWithFilesAsync(CreateLessonWithFilesDto dto, string staffId, string webRootPath)
         {
+            //Create Lesson ID.
             var lessonId = Uuidv7Generator.NewUuid7().ToString();
 
-            var lesson = new Lesson
+            //Check classroom exists
+            var classroomExists = await _context.Classrooms.AnyAsync(c => c.ClassroomId == dto.ClassrooomID);
+            if (!classroomExists)
             {
-                LessonId = lessonId,
-                CreateBy = staffId,
-                ClassroomId = dto.ClassrooomID,
-                Title = dto.LessonTitle,
-                Content = dto.Content,
-                CreateAt = DateTime.UtcNow,
-            };
+                throw new ArgumentException("Classroom does not exist.");
+            }
 
-            await _context.Lessons.AddAsync(lesson);
-            if (dto.Files != null && dto.Files.Any())
+            //Clear and safe folder names
+            var safeClassName = SlugHelper.Sluggify(dto.ClassName);
+            var safeLessonTitle = SlugHelper.Sluggify(dto.LessonTitle);
+
+            //Create link folder to save file
+            var folderPath = Path.Combine (webRootPath, "uploads", "Lessons", safeClassName, safeLessonTitle);
+            Directory.CreateDirectory(folderPath);
+
+            //Start transaction
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
             {
-                //Create Folder to save files: uploads/lessons/{lessonId}/{lessonTitle}
-                var folderPath = Path.Combine(webRootPath, "uploads", "Lessons", dto.ClassName, dto.LessonTitle);
-                Directory.CreateDirectory(folderPath);
-                foreach (var file in dto.Files)
+                //Create lesson record
+                var lesson = new Lesson
                 {
-                    var fileName = Path.GetFileName(file.FileName);
-                    var fullPath = Path.Combine(folderPath, fileName);
-                    using (var stream = new FileStream(fullPath, FileMode.Create))
+                    LessonId = lessonId,
+                    CreateBy = staffId,
+                    ClassroomId = dto.ClassrooomID,
+                    Title = dto.LessonTitle,
+                    Content = dto.Content,
+                    CreateAt = DateTime.UtcNow,
+                };
+
+                await _context.Lessons.AddAsync(lesson);
+
+                //Log: Create Log lesson
+                await _context.ActivityLogs.AddAsync(new ActivityLog
+                {
+                    LogId = Uuidv7Generator.NewUuid7().ToString(),
+                    StaffId = staffId,
+                    Action = "Create Lesson",
+                    TargetId = lessonId,
+                    TargetTable = "Lessons",
+                    TargetName = dto.LessonTitle,
+                    Timestap = DateTime.UtcNow
+                });
+
+                //File upload if have
+                if (dto.Files != null)
+                {
+                    foreach (var file in dto.Files)
                     {
-                        await file.CopyToAsync(stream);
+                        //Drop file if null or empty
+                        if (file == null || file.Length == 0)
+                            continue;
+
+                        var fileName = Path.GetFileName(file.FileName);
+                        var fullPath = Path.Combine(folderPath, fileName);
+
+                        //Save physical file to server
+                        using (var stream = new FileStream(fullPath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        //Create Path to FE access
+                        var relativePath = $"/uploads/Lessons/{safeClassName}/{safeLessonTitle}/{fileName}";
+
+                        //Save file record to DB
+                        var lessonFile = new LessonFile
+                        {
+                            FilesId = Uuidv7Generator.NewUuid7().ToString(),
+                            LessonId = lessonId,
+                            FileName = fileName,
+                            FilePath = relativePath,
+                            FileType = file.ContentType,
+                            UpdateAt = DateTime.UtcNow,
+                        };
+
+                        await _context.LessonFiles.AddAsync(lessonFile);
+
                     }
-
-                    var relativePath = $"/uploads/Lessons/{dto.ClassName}/{dto.LessonTitle}/{fileName}";
-
-                    var lessonFile = new LessonFile
-                    {
-                        FilesId = Uuidv7Generator.NewUuid7().ToString(),
-                        LessonId = lessonId,
-                        FileName = fileName,
-                        FilePath = relativePath,
-                        FileType = file.ContentType,
-                        UpdateAt = DateTime.UtcNow
-                    };
-
-                    await _context.LessonFiles.AddAsync(lessonFile);
-
-                    await _context.ActivityLogs.AddAsync(new ActivityLog
-                    {
-                        LogId = Uuidv7Generator.NewUuid7().ToString(),
-                        StaffId = staffId,
-                        Action =  "Create Lesson",
-                        TargetId = lessonId,
-                        TargetTable = "Lessons",
-                        TargetName = dto.LessonTitle,
-                        Timestap = DateTime.UtcNow
-                    });
                 }
 
+                //Save to DB and commit transaction
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return lessonId;
+            }catch (Exception ex)
+            {
+                //Write log error
+                _logger.LogError(ex, "Error creating lesson with files.");
+
+                //Rollback transaction
+                await transaction.RollbackAsync();
+                throw;
             }
-            await _context.SaveChangesAsync();
-            return lessonId;
 
         }
 

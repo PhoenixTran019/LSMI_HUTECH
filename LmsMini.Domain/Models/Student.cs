@@ -24,6 +24,7 @@ public partial class Student
     public string? PhoneEmer { get; set; }
 
     public string? Mail { get; set; }
+    public string? Gender { get; set; }
 
     public DateOnly? Dob { get; set; }
 
