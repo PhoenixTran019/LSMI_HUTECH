@@ -1,4 +1,5 @@
-﻿using LmsMini.Application.DTOs.Lesson;
+﻿using LmsMini.Application.DTOs.ClassAssignment;
+using LmsMini.Application.DTOs.Lesson;
 using LmsMini.Application.Interfaces;
 using LmsMini.Domain.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -53,15 +54,7 @@ namespace LmsMini.Api.Controllers
             }
         }
 
-        //Create Assignment with file uploads
-        [Authorize(Roles = "Staff,Lecturer,Admin")]
-        [HttpPost("create-assignment")]
-        public async Task<IActionResult> CreateAssignment([FromForm] CreateAssigmentWithFilesDto dto)
-        {
-            var teacherId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var assignId = await _lessonService.CreateAssignmentWithFilesAsync(dto, teacherId, _env.WebRootPath);
-            return Ok(new { AssignmentID = assignId });
-        }
+       
 
         // Get lesson detail
         [Authorize (Roles = "Staff,Lecturer,Admin")]
@@ -69,7 +62,10 @@ namespace LmsMini.Api.Controllers
         public async Task<IActionResult> GetLessonDetail(string lessonId)
         {
             var detail = await _lessonService.GetLessonDetailAsync(lessonId);
-            if (detail == null) return NotFound("Doesn't find the lesson!");
+
+            if (detail == null) 
+                return NotFound("Doesn't find the lesson!");
+            
             return Ok(detail);
         }
 
@@ -94,20 +90,45 @@ namespace LmsMini.Api.Controllers
         public async Task<IActionResult> UpdateLesson([FromRoute] string id, [FromForm] UpdateLessonDto dto)
         {
             //Take StaffID form claim
-            var staffId = User.FindFirst("StaffID")?.Value;
+            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
             if(string.IsNullOrEmpty(staffId))
                 return Unauthorized("Doesn't find StaffId in token");
 
             //webRootPath to build phisical link
             var webRootPath = _env.WebRootPath;
+            if(string.IsNullOrEmpty(webRootPath))
+                return StatusCode(500, "Cann't determine web root path");
 
             var ok = await _lessonService.UpdateLessonAsync(id, dto, staffId, webRootPath);
+
             if (!ok)
             {
                 return NotFound("Lesson not found!");
 
                 
             }
+            return NoContent();
+        }
+
+        //Controller to delete lesson
+        [Authorize(Roles = "Staff,Lecturer,Admin")]
+        [HttpDelete("{id}-deleteLesson")]
+        public async Task<IActionResult> DeleteLesson([FromRoute] string id)
+        {
+            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(staffId))
+                return Unauthorized("Doesn't find StaffId in token");
+
+            var webRootPath = _env.WebRootPath;
+
+            var deteted = await _lessonService.DeleteLessonAsync(id, staffId, webRootPath);
+            if (!deteted)
+            {
+                return NotFound("Lesson not found!");
+            }
+
             return NoContent();
         }
     }

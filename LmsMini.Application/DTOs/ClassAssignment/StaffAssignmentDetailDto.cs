@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LmsMini.Application.DTOs.Lesson
+namespace LmsMini.Application.DTOs.ClassAssignment
 {
     public class StaffAssignmentDetailDto
     {

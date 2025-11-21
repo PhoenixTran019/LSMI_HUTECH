@@ -78,11 +78,15 @@ namespace LmsMini.Infrastructure.Services
         /// <returns>Chuỗi token JWT đã được ký.</returns>
         public string CreateToken(User user, string roleName)
         {
-            
+
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.UserId),
                 new Claim(ClaimTypes.Name, user.Username?? string.Empty),
+
+                //Adding to claim StaffID
+                new Claim("StaffID", user.Username?? string.Empty),
+
                 new Claim(ClaimTypes.Role, roleName)
             };
 

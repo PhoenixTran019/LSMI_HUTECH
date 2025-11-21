@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LmsMini.Application.DTOs.Lesson
+namespace LmsMini.Application.DTOs.ClassAssignment
 {
     //DTO for assignment file details
     public class AssigmentFileDto
