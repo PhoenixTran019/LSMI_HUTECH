@@ -24,7 +24,7 @@
 
 using LmsMini.Application.Auth;
 using LmsMini.Application.Interfaces;
-using LmsMini.Domain.Domain.Entities;
+using LmsMini.Domain.Models;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -78,24 +78,28 @@ namespace LmsMini.Infrastructure.Services
         /// <returns>Chuỗi token JWT đã được ký.</returns>
         public string CreateToken(User user, string roleName)
         {
-            
+
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.UserId),
                 new Claim(ClaimTypes.Name, user.Username?? string.Empty),
+
+                //Adding to claim StaffID
+                new Claim("StaffID", user.Username?? string.Empty),
+
                 new Claim(ClaimTypes.Role, roleName)
             };
 
             
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opts.Key));
 
             // Tạo SigningCredentials sử dụng HMAC SHA256
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             // Tạo token với issuer, audience, claims (bao gồm role claims), thời hạn và signing credentials
             var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
+                issuer: _opts.Issuer,
+                audience: _opts.Audience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddHours(3),
                 signingCredentials: creds

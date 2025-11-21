@@ -1,4 +1,4 @@
-﻿using LmsMini.Domain.Domain.Entities;
+﻿using LmsMini.Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -49,20 +49,35 @@ namespace LmsMini.Api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto login)
         {
+            //1.Normalize username form FE
+            var nomalizedUsername = login.UserName?
+                .Trim()
+                .ToUpperInvariant();//Case-insensitive
+
+            //2.Block username contains space or special character
+            if(string.IsNullOrWhiteSpace(nomalizedUsername) || nomalizedUsername.Contains(" "))
+            {
+                return BadRequest("Username is invalid");
+            }
+
+            //3.Find user by username but compare lowercase
             var user = await _context.Users
                 .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.Username == login.UserName);
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == nomalizedUsername);
 
             if(user == null)
                 return Unauthorized("Invalid username or password");
 
+            //4.Hash input password and compare with db
             var hasedInput = _jwtService.HashPassword(login.Password);
 
             if(user.PasswordHash != hasedInput)
-                return Unauthorized("Invalid username or password");
+                return Unauthorized("Invalid password");
 
+            //5.Create JWT token
             var token = _jwtService.CreateToken(user, user.Role.RoleName);
 
+            //6.Determine redirect URL based on role
             var redirectUrl = user.Role.RoleName switch
             {
                 "Admin" => "/admin/dashboard",
@@ -73,7 +88,7 @@ namespace LmsMini.Api.Controllers
             return Ok(new LoginResponseDto
             {
                 Token = token,
-                Role = user.Role.RoleName,
+                   Role = user.Role.RoleName,
                 RedirectUrl = redirectUrl
             });
         }
