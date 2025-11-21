@@ -69,16 +69,7 @@ namespace LmsMini.Api.Controllers
             return Ok(detail);
         }
 
-        //Get Assignment for Lec/Staff/Admin
-        [Authorize (Roles = "Staff,Lecturer,Admin")]
-        [HttpGet ("{id}/detail")]
-        public async Task<IActionResult> StaffGetAssignmentDetail(string id)
-        {
-            var result = _lessonService.StaffGetAssignmentDetailAysnc(id);
-            if (result == null) return NotFound("Doesn't found Assignment");
-
-            return Ok(result);
-        }
+        
 
         ///<summary>
         ///Update Lesson (Form-data to sp upload file

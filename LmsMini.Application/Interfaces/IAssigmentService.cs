@@ -12,5 +12,7 @@ namespace LmsMini.Application.Interfaces
         Task<string> CreateAssignmentWithFilesAsync(CreateAssigmentWithFilesDto dto, string teacherId, string webRootPath);
 
         Task<StaffAssignmentDetailDto?> StaffGetAssignmentDetailAysnc(string assigmentId);
+
+        Task<bool> UpdateAssignmentAsync(string assignmentId, UpdateAssignmentDto dto, string staffId, string webRootPath);
     }
 }
