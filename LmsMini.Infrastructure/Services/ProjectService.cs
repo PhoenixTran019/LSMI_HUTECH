@@ -86,5 +86,74 @@ namespace LmsMini.Infrastructure.Services
             return projectId;
         }
 
+        //==========SERVICE TO APPROVE==========
+        public async Task<bool> ApproveAsync(ProjectApprovalDto dto, string approverId)
+        {
+            var assign = await _context.ProjectAssigns
+                .FirstOrDefaultAsync(x => x.AssignId == dto.AssignID);
+
+            if (assign == null)
+                throw new Exception("Project Assign not found");
+
+            var approver = await _context.DepartmentStaffs
+                .FirstOrDefaultAsync(x => x.StaffId == approverId);
+
+            if (approver == null)
+                throw new Exception("Approver not found");
+
+            bool isIndustryLeader = approver.Desciption == "IndustryLeader";
+
+            //===== Rule 1: Comments required only when Reject=====
+            if (dto.Decicion == "Reject" && string.IsNullOrWhiteSpace(dto.Comments))
+                throw new Exception("Comments is required when Rejecting");
+
+            //===== Rule 2: When Approve -> clear Comments =====
+
+            //Write Approve
+            var approval = new ProjectApproval
+            {
+                ApprovalId = Uuidv7Generator.NewUuid7().ToString(),
+                RegistId = assign.AssignId,
+                ApproverId = approverId,
+                Decision = dto.Decicion ?? "Approve",
+                Comments = dto.Comments,
+                ApprovalDate = DateTime.UtcNow,
+            };
+
+            _context.ProjectApprovals.Add(approval);
+
+            //Reject case
+            if (dto.Decicion == "Reject")
+            {
+                assign.Status = "Rejected";
+                assign.ApprovalNote = dto.Comments; //Only in reject
+                await _context.SaveChangesAsync();
+                return true;
+            }
+
+            //Staff approval -> move to IndustryLeader;
+            if (!isIndustryLeader)
+            {
+                assign.Status = "PandingIndustryLeader";
+                assign.ApprovalNote = null; //no comment
+                await _context.SaveChangesAsync();
+                return true;
+            }
+
+            if (isIndustryLeader)
+            {
+                if (string.IsNullOrEmpty(dto.LecturerID))
+                    throw new Exception("LecturerId is required for IndustryLeader approval.");
+
+                assign.LecturerId = dto.LecturerID;
+                assign.Status = "Approved";
+                assign.ApprovalNote = null; 
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+
+        }
+
     }
 }

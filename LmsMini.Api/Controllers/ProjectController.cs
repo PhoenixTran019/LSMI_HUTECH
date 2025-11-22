@@ -52,5 +52,33 @@ namespace LmsMini.Api.Controllers
                 return StatusCode(500, new { Error = ex.Message });
             }
         }
+
+        //==========APPROVE FOR STAFF===========
+        [HttpPost("Staff-Approve")]
+        [Authorize(Roles = "Staff, Admin")]
+        public async Task<IActionResult> StaffApprove([FromBody] ProjectApprovalDto dto)
+        {
+            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (staffId == null)
+                return Unauthorized("Cannot identify staff from token.");
+
+            var result = await _projectService.ApproveAsync(dto, staffId);
+
+            return Ok(new {success =  result});
+        }
+
+        //==========INDUSTRY LEADER ONLY===========
+        [HttpPost("Leader-Approve")]
+        [Authorize(Roles = "Staff, Admin, Lecturer")]
+        public async Task<IActionResult> LeaderApprove([FromBody] ProjectApprovalDto dto)
+        {
+            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (staffId == null)
+                return Unauthorized("Cannot identify staff from token.");
+
+            var result = await _projectService.ApproveAsync(dto, staffId);
+
+            return Ok(new {success = result});
+        }
     }
 }
