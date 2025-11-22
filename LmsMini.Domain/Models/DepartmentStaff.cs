@@ -19,7 +19,7 @@ public partial class DepartmentStaff
 
     public string? PhoneNum { get; set; }
 
-    public string? Desciption { get; set; }
+    public string? Description { get; set; }
 
     public string? Mail { get; set; }
 

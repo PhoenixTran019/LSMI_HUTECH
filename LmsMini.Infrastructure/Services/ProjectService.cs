@@ -1,6 +1,6 @@
 ﻿using LmsMini.Application.Common.Helpers;
 using LmsMini.Application.DTOs.Project;
-using LmsMini.Application.Interfaces;
+using LmsMini.Infrastructure.Services;
 using LmsMini.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -10,6 +10,7 @@ using System.Linq;
 using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Threading.Tasks;
+using LmsMini.Application.Interfaces;
 
 namespace LmsMini.Infrastructure.Services
 {
@@ -48,7 +49,7 @@ namespace LmsMini.Infrastructure.Services
 
             var projectId = Uuidv7Generator.NewUuid7().ToString();
 
-            var project = new Project
+            var project = new Domain.Models.Project
             {
                 ProjectId = projectId,
                 Title = dto.Title,
@@ -101,7 +102,7 @@ namespace LmsMini.Infrastructure.Services
             if (approver == null)
                 throw new Exception("Approver not found");
 
-            bool isIndustryLeader = approver.Desciption == "IndustryLeader";
+            bool isIndustryLeader = approver.Description == "IndustryLeader";
 
             //===== Rule 1: Comments required only when Reject=====
             if (dto.Decicion == "Reject" && string.IsNullOrWhiteSpace(dto.Comments))
