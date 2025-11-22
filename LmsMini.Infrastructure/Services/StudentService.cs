@@ -83,7 +83,7 @@ namespace LmsMini.Infrastructure.Services
             {
                 LogId = Uuidv7Generator.NewUuid7().ToString(),
                 StaffId = staffID,
-                DepartId = dto.DepartID,
+                DepartId = departId,
                 Action = "Create new Student and their Account",
                 TargetTable = "Student, Users",
                 TargetId = normalizedStudentID,

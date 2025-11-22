@@ -43,6 +43,8 @@ namespace LmsMini.Api.Controllers
             return Ok(assignmentDetail);
         }
 
+
+        //===========UPDATE ASSIGNMENT ==============
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpPut("update-assignment/{assignmentId}")]
         //Update Assignment
@@ -59,6 +61,25 @@ namespace LmsMini.Api.Controllers
             var ok = await _assigment.UpdateAssignmentAsync(assignmentId, dto, staffId, webRootPath);
             if (!ok)
                 return StatusCode(500, "Failed to update assignment.");
+
+            return NoContent();
+        }
+
+        //===========DELETE ASSIGNMENT ==============
+        [Authorize(Roles = "Staff,Lecturer,Admin")]
+        [HttpDelete("delete-assignment/{assignmentId}")]
+        public async Task<IActionResult> DeleteAssignment([FromRoute] string assignmentId)
+        {
+            //StaffId stored in JWT claim
+            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(staffId))
+                return Unauthorized("Cannot identify staff from token.");
+
+            var ok = await _assigment.DeleteAssignmentAsync(assignmentId, staffId, _env.WebRootPath);
+
+            if (!ok)
+                return NotFound("Assignment not found or unanble to delete");
 
             return NoContent();
         }

@@ -8,8 +8,10 @@ using LmsMini.Domain.Models;
 using LmsMini.Infrastructure.Services;
 using LmsMini.Infrastructure.Services.Classrooms;
 using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 
@@ -61,6 +63,7 @@ builder.Services.AddScoped<IClassroomService, ClassroomService>();
 builder.Services.AddScoped<IAssigmentService, AssignmentService>();
 builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddScoped<StudentDropdownSchemaFilter>();
+builder.Services.AddScoped<ProjectMajorDropdownSchemaFilter>();
 
 // ======================================================================
 // 3.6 Đăng ký FluentValidation
@@ -69,6 +72,30 @@ builder.Services.AddControllers();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddFluentValidationClientsideAdapters();
 builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+    .AddJwtBearer(options =>
+    {
+        var jwtOpts = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = jwtOpts.Issuer,
+            ValidAudience = jwtOpts.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(jwtOpts.Key)),
+
+            ClockSkew =TimeSpan.Zero
+        };
+    });
 
 // ======================================================================
 // 3.7 Đăng ký Swagger/OpenAPI (cấu hình bảo mật, JWT nếu cần)
@@ -102,6 +129,8 @@ builder.Services.AddSwaggerGen(c =>
     });
 
     c.SchemaFilter<StudentDropdownSchemaFilter>();
+
+    c.SchemaFilter<ProjectMajorDropdownSchemaFilter>();
 });
 
 // ======================================================================

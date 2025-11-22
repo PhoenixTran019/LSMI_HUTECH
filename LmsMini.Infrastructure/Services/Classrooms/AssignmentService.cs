@@ -24,7 +24,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             _logger = logger;
         }
 
-        //Service to create a new assignment with file uploads
+        //==========Service to create a new assignment with file uploads==========
         public async Task<string> CreateAssignmentWithFilesAsync(CreateAssigmentWithFilesDto dto, string teacherId, string webRootPath)
         {
             var assignId = Uuidv7Generator.NewUuid7().ToString();
@@ -100,6 +100,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             return assignId;
         }
 
+        //==========Service to get assignment detail for Staff/Lecturer/Admin==========
         ///<summary>
         ///Lấy chi tiết bài tập cho giảng viên/giáo viên
         ///Bao gồm thông tin bài tập và các tệp đính kèm
@@ -185,7 +186,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
         }
 
 
-        //Service to update an existing assignment
+        //==========Service to update an existing assignment==========
         public async Task<bool> UpdateAssignmentAsync(string assignmentId, UpdateAssignmentDto dto, string staffId, string webRootPath)
         {
             //Load assignment and File
@@ -371,6 +372,109 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 _logger.LogError(ex, "Error updating assignment {AssignmentId}", assignmentId);
                 try { await tx.RollbackAsync(); } catch { }
                 throw;
+            }
+        }
+
+
+        //===========SERVICES FOR DELETE ASSIGNMET==========
+        public async Task<bool> DeleteAssignmentAsync(string assignmentId, string staffId, string webRootPath)
+        {
+
+            //Load assignment with files
+            var assignment = await _context.Assignments
+                .Include(a => a.AssignmentFiles)
+                .FirstOrDefaultAsync(a => a.AssignId == assignmentId);
+
+            if (assignment == null)
+                return false;
+
+            //Transaction -> ensuers no partial delete
+            using var tx = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                //===Delete physical files ===
+                foreach (var file in assignment.AssignmentFiles)
+                {
+                    try
+                    {
+                        var rePath = (file.FilePath ?? "")
+                            .TrimStart('/', '\\')
+                            .Replace('/', Path.DirectorySeparatorChar);
+
+                        var physicalPath = Path.Combine(webRootPath, rePath);
+
+                        if (File.Exists(physicalPath))
+                            File.Delete(physicalPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error deleting physical file for assignment {AssignmentId}", assignmentId);
+                    }
+                }
+                //===Delete Folder if empty===
+                try
+                {
+                    var className = SlugHelper.Sluggify(
+                        _context.Classrooms
+                        .Where(c => c.ClassroomId == assignment.ClassroomId)
+                        .Select(c => c.ClassName)
+                        .FirstOrDefault()
+                        ?? "Unknow_Class"
+                    );
+
+                    var folderTitle = SlugHelper.Sluggify(assignment.Title ?? "unknow_assignment");
+
+                    var assignFolder = Path.Combine(webRootPath, "uploads", "Assignments", className, folderTitle);
+
+                    if (Directory.Exists(assignFolder))
+                    {
+                        Directory.Delete(assignFolder, recursive: true);
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error deleting assignment folder for assignment {AssignmentId}", assignmentId);
+                }
+                //===Delete DB records===
+                _context.AssignmentFiles.RemoveRange(assignment.AssignmentFiles);
+                _context.Assignments.Remove(assignment);
+
+                //===Log activity===
+                try
+                {
+                    var log = new ActivityLog
+                    {
+                        LogId = Uuidv7Generator.NewUuid7().ToString(),
+                        StaffId = staffId,
+                        Action = "Delete Assignment",
+                        TargetId = assignmentId,
+                        TargetTable = "Assignments",
+                        TargetName = assignment.Title,
+                        Timestap = DateTime.UtcNow
+                    };
+                    await _context.ActivityLogs.AddAsync(log);
+
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error logging activity for assignment deletion {AssignmentId}", assignmentId);
+                }
+
+                //===Save and commit===
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return true;
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting assignment {AssignmentId}", assignmentId);
+                try { await tx.RollbackAsync(); } catch { }
+                throw;
+
             }
         }
     }
