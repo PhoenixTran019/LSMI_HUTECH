@@ -88,6 +88,7 @@ Create Table DepartmentStaffs
 	FirstName nvarchar(20),
 	LastName nvarchar(50),
 	StaffRole nvarchar(155) Foreign Key References Roles (RoleID),
+	Description nvarchar(20),
 	DOB Date,
 	PhoneNum nvarchar(20),
 	Mail nvarchar(155),
@@ -327,6 +328,7 @@ Create Table ProjectClassrooms
 	ProClassID nvarchar(155) Primary Key,
 	ProjectID nvarchar(155) Foreign Key References Projects (ProjectID),
 	ClassroomName nvarchar(255),
+	InviteCode nvarchar(15),
 	CreateDate DateTime2 Default GetDate(),
 	IsActive BIT
 );
@@ -495,6 +497,7 @@ Create Table InternClassrooms
 	InternClassID nvarchar(155) Primary Key,
 	LecturerID nvarchar(155) Foreign Key References DepartmentStaffs (StaffID),
 	InternID nvarchar(155) Foreign Key References Internships (InternID),
+	InviteCode nvarchar(15),
 	ClassroomName Nvarchar(255),
 	Description nvarchar(355),
 	CreateDate DateTime2 Default GetDate(),

@@ -26,14 +26,14 @@ namespace LmsMini.Infrastructure.Services
             if (dto == null) throw new ArgumentNullException(nameof(dto));
 
             //Lấy ID thực từ dropdown "ID | Name"
-            string departId = dto.DepartID?.Split(" | ")[0]?.Trim()
-                ?? throw new ArgumentException("DepartID is required");
+            var departEntity = await _context.Departments.FirstOrDefaultAsync(d => d.DepartName == dto.DepartID);
+            if (departEntity == null) throw new ArgumentException("Invalid Depart name");
 
-            string classId = dto.ClassID?.Split(" | ")[0]?.Trim()
-                ?? throw new ArgumentException("ClassID is required");
+            var classEntity = await _context.Classes.FirstOrDefaultAsync(c => c.ClassName == dto.ClassID);
+            if (classEntity == null) throw new ArgumentException("Invalid Classes name");
 
-            string majorId = dto.StuMajor?.Split(" | ")[0]?.Trim()
-                ?? throw new ArgumentException("StuMajor is required");
+            var majorEntity = await _context.Majors.FirstOrDefaultAsync(m => m.MajorName == dto.StuMajor);
+            if (majorEntity == null) throw new ArgumentException("Invalid Major Name");
 
             // Normalize to not differentiate between upper/lower case
             var normalizedStudentID = dto.StudentID.Trim().ToLower();
@@ -72,11 +72,16 @@ namespace LmsMini.Infrastructure.Services
                 Dob = dto.DOB,
                 Gender = dto.Gender,
                 PhoneNum = dto.PhoneNumber,
-                DepartId = departId,
-                ClassId = classId,
-                StuMajor = majorId,
+                DepartId = departEntity.DepartId,
+                ClassId = classEntity.ClassId,
+                StuMajor = majorEntity.MajorId,
                 EnrollmentDate = dto.EnrollmentDate,
             };
+
+            var departId = await _context.StaffDeparts
+                .Where(s => s.StaffId == staffID)
+                .Select(s => s.DepartId)
+                .FirstOrDefaultAsync();
 
             //Write new log
             var log = new ActivityLog

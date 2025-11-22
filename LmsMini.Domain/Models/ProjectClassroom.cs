@@ -13,6 +13,8 @@ public partial class ProjectClassroom
 
     public DateTime? CreateDate { get; set; }
 
+    public string? InviteCode { get; set; }
+
     public bool? IsActive { get; set; }
 
     public virtual Project? Project { get; set; }

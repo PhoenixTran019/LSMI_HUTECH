@@ -43,7 +43,7 @@ namespace LmsMini.Infrastructure.Services
                 throw new ArgumentException("Invalid Major: ProMajor does not exist");
 
             //Validate MaxStudent
-            if (dto.MaxStudent <= 0)
+            if (dto.MaxStudents <= 0)
                 throw new ArgumentException("Max Student Must be greater than 0");
 
             var projectId = Uuidv7Generator.NewUuid7().ToString();
@@ -54,7 +54,7 @@ namespace LmsMini.Infrastructure.Services
                 Title = dto.Title,
                 ProMajor = majorEntity.MajorId, //Save real ID
                 Cohort = dto.Cohort,
-                MaxStudents = dto.MaxStudent,
+                MaxStudents = dto.MaxStudents,
                 Description = dto.Description,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,

@@ -48,35 +48,20 @@ namespace LmsMini.Api.Swagger
         public void Apply(OpenApiSchema schema, SchemaFilterContext context)
         {
             // Chỉ áp dụng cho CreateStudentDto
-            if (context.Type != typeof(CreateStudentDto))
-                return;
-
-            if (schema?.Properties == null)
+            if (context.Type != typeof(CreateStudentDto) || schema?.Properties == null)
                 return;
 
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<LmsDbContext>();
 
             // Department List
-            var departList = db.Departments
-                .Select(d => $"{d.DepartId} | {d.DepartName}")
-                .ToList();
-
-            SetEnum(schema, "DepartID", departList);
+            SetEnum(schema, "DepartID", db.Departments.Select(d => d.DepartName).ToList());
 
             // Class List
-            var classList = db.Classes
-                .Select(c => $"{c.ClassId} | {c.ClassName}")
-                .ToList();
-
-            SetEnum(schema, "ClassID", classList);
+            SetEnum(schema, "ClassID", db.Classes.Select(c => c.ClassName).ToList());
 
             // Major List
-            var majorList = db.Majors
-                .Select(m => $"{m.MajorId} | {m.MajorName}")
-                .ToList();
-
-            SetEnum(schema, "StuMajor", majorList);
+            SetEnum(schema, "StuMajor", db.Majors.Select(m => m.MajorName).ToList());
         }
     }
 }

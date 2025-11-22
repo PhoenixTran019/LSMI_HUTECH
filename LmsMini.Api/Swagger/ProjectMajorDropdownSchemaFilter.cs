@@ -10,33 +10,32 @@ namespace LmsMini.Api.Swagger
     public class ProjectMajorDropdownSchemaFilter : ISchemaFilter
     {
 
-        private readonly LmsDbContext _context;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public ProjectMajorDropdownSchemaFilter(LmsDbContext context)
+        public ProjectMajorDropdownSchemaFilter(IServiceScopeFactory scopeFactory)
         {
-            _context = context;
+            _scopeFactory = scopeFactory;
         }
 
         public void Apply(OpenApiSchema schema, SchemaFilterContext context)
         {
 
-            if(context.Type == typeof(CreateProjectDto) || schema?.Properties == null)
+            if(context.Type != typeof(CreateProjectDto) || schema?.Properties == null)
                 return;
-            
-                //Take List MajorId to fill dropdown
-                var majorList = _context.Majors
-                    .Select(m => m.MajorId)
-                    .ToList();
 
-                schema.Properties["ProMajor"].Enum = majorList
-                    .Select(m => new OpenApiString(m))
-                    .Cast<IOpenApiAny>()
-                    .ToList();
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<LmsDbContext>();
 
-                //Description with major name
-                schema.Properties["ProMajor"].Description =
-                    "Choose Major: " + string.Join(", ", majorList);
-            
+            var majorNames = db.Majors
+            .Select(m => m.MajorName) // CHỈ LẤY NAME
+            .ToList();
+
+            if (schema.Properties.TryGetValue("ProMajor", out var prop))
+            {
+                prop.Enum = majorNames
+                    .Select(n => (IOpenApiAny)new OpenApiString(n))
+                    .ToList();
+            }
 
         }
     }

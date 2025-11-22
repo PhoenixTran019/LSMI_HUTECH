@@ -15,6 +15,8 @@ public partial class InternClassroom
 
     public string? Description { get; set; }
 
+    public string? InviteCode { get; set; }
+
     public DateTime? CreateDate { get; set; }
 
     public virtual Internship? Intern { get; set; }

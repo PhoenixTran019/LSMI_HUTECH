@@ -470,6 +470,7 @@ public partial class LmsDbContext : DbContext
             entity.Property(e => e.ClassroomName).HasMaxLength(255);
             entity.Property(e => e.CreateDate).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.Description).HasMaxLength(355);
+            entity.Property(e => e.InviteCode).HasMaxLength(15);
             entity.Property(e => e.InternId)
                 .HasMaxLength(155)
                 .HasColumnName("InternID");
@@ -872,6 +873,7 @@ public partial class LmsDbContext : DbContext
                 .HasMaxLength(155)
                 .HasColumnName("ProClassID");
             entity.Property(e => e.ClassroomName).HasMaxLength(255);
+            entity.Property(e => e.InviteCode).HasMaxLength(15);
             entity.Property(e => e.CreateDate).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.ProjectId)
                 .HasMaxLength(155)

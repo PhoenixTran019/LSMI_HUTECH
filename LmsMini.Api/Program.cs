@@ -64,11 +64,15 @@ builder.Services.AddScoped<IAssigmentService, AssignmentService>();
 builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddScoped<StudentDropdownSchemaFilter>();
 builder.Services.AddScoped<ProjectMajorDropdownSchemaFilter>();
-
+builder.Services.AddScoped<IProjectService, ProjectService>();
 // ======================================================================
 // 3.6 Đăng ký FluentValidation
 // ======================================================================
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.PropertyNamingPolicy = null;
+    });
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddFluentValidationClientsideAdapters();
 builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());

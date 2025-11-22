@@ -17,7 +17,7 @@ namespace LmsMini.Application.DTOs.Project
 
         public string? Description { get; set; }
 
-        public int? MaxStudent { get; set; }
+        public int? MaxStudents { get; set; }
 
         public DateTime? StartDate { get; set; }
 
