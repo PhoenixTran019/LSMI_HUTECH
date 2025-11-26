@@ -9,6 +9,13 @@ namespace LmsMini.Application.Interfaces
 {
     public interface IProjectClassroomService
     {
-        Task<string> CreateProjectClassroomAsync(CreateProjectClassroomDto dto);
+        Task<string> CreateProjectClassroomAsync(CreateProjectClassroomDto dto, string staffId);
+
+        Task<List<MyClassroomDto>> GetMyClassroomsAsync(string staffId);
+
+        Task AddMemberAsync(AddLecturerToProjectClassroomDto dto, string staffId);
+
+        Task<ProjectClassroomDashboardDto> GetDashboardAsync(string proClassId);
+
     }
 }

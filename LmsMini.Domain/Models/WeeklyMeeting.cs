@@ -13,6 +13,8 @@ public partial class WeeklyMeeting
 
     public DateTime? MeetingDate { get; set; }
 
+    public string? ProLinkMeeting { get; set; }
+
     public string? Notes { get; set; }
 
     public virtual DepartmentStaff? Lecturer { get; set; }

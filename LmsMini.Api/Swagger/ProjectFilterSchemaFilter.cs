@@ -7,11 +7,11 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace LmsMini.Api.Swagger
 {
-    public class ProjectFilter : ISchemaFilter
+    public class ProjectFilterSchemaFilter : ISchemaFilter
     {
         private readonly IServiceScopeFactory _scopeFactory;
 
-        public ProjectFilter(IServiceScopeFactory scopeFactory)
+        public ProjectFilterSchemaFilter(IServiceScopeFactory scopeFactory)
         {
             _scopeFactory = scopeFactory;
         }
@@ -32,7 +32,7 @@ namespace LmsMini.Api.Swagger
             if (schema.Properties.TryGetValue("ProjectID", out var prop))
             {
                 prop.Enum = projectName
-                    .Select(p => (IOpenApiAny)new OpenApiString(n))
+                    .Select(p => (IOpenApiAny)new OpenApiString(p))
                     .ToList();
             }
 

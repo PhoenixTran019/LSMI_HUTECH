@@ -23,12 +23,12 @@ namespace LmsMini.Api.Controllers
         //Create Lesson with file uploads
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpPost("create-lesson")]
-        public async Task<IActionResult> CreateLesson([FromForm] CreateLessonWithFilesDto dto)
+        public async Task<IActionResult> CreateLesson([FromForm] CreateLessonWithFilesDto dto, string staffId)
         {
             try
             {
                 // Check Staff Login
-                var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(staffId))
                     return Unauthorized("Cannot identify staff from token.");
 
@@ -122,5 +122,7 @@ namespace LmsMini.Api.Controllers
 
             return NoContent();
         }
+
+      
     }
 }

@@ -1283,6 +1283,7 @@ public partial class LmsDbContext : DbContext
             entity.Property(e => e.ProClassId)
                 .HasMaxLength(155)
                 .HasColumnName("ProClassID");
+            entity.Property(e => e.ProLinkMeeting).HasMaxLength(355);
 
             entity.HasOne(d => d.Lecturer).WithMany(p => p.WeeklyMeetings)
                 .HasForeignKey(d => d.LecturerId)

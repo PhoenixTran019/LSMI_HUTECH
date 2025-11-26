@@ -7,9 +7,11 @@ using LmsMini.Application.Interfaces;
 using LmsMini.Domain.Models;
 using LmsMini.Infrastructure.Services;
 using LmsMini.Infrastructure.Services.Classrooms;
+using LmsMini.Infrastructure.Services.Project;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -65,6 +67,8 @@ builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddScoped<StudentDropdownSchemaFilter>();
 builder.Services.AddScoped<ProjectMajorDropdownSchemaFilter>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IProjectClassroomService, ProjectClassroomService>();
+builder.Services.AddScoped<ProjectFilterSchemaFilter>();
 // ======================================================================
 // 3.6 Đăng ký FluentValidation
 // ======================================================================
@@ -135,6 +139,8 @@ builder.Services.AddSwaggerGen(c =>
     c.SchemaFilter<StudentDropdownSchemaFilter>();
 
     c.SchemaFilter<ProjectMajorDropdownSchemaFilter>();
+
+    c.SchemaFilter<ProjectFilterSchemaFilter>();
 });
 
 // ======================================================================
