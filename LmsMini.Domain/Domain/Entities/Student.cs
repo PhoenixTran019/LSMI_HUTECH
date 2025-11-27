@@ -19,6 +19,8 @@ public partial class Student
 
     public string? LastName { get; set; }
 
+    public string? Gender { get; set; }
+
     public string? PhoneNum { get; set; }
 
     public string? PhoneEmer { get; set; }
