@@ -2,6 +2,7 @@
 using LmsMini.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace LmsMini.Api.Controllers
 {
@@ -50,6 +51,19 @@ namespace LmsMini.Api.Controllers
             }
         }
 
+        //Controller to get all Classroom in Project
+        [Authorize(Roles ="Admin, Lecturer, Staff")]
+        [HttpGet("project-classroom-homepage")]
+        public async Task<IActionResult> GetMyClassrooms()
+        {
+            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var result = await _projectClassroomService.GetMyClassroomsAsync(staffId);
+
+            return Ok(result);
+        }
+
+        //==========CONTROLLER TO ADD LECTURER BY HAND==========
         [Authorize(Roles="Staff,Lecturer,Admin")]
         [HttpPost("{proClassID}/Add-Lecturer")]
         public async Task<IActionResult> AddLecturer([FromBody] AddLecturerToProjectClassroomDto dto, string staffId, string proClassID)
@@ -85,6 +99,43 @@ namespace LmsMini.Api.Controllers
             {
                 return StatusCode(500, new { Error = "Đã xảy ra lỗi hệ thống khi thêm giảng viên vào lớp." });
             }
+        }
+
+        //==========SERVICE TO CREATE NEW LESSON==========
+        [Authorize(Roles =("Admin, Staff, Lecturer"))]
+        [HttpPost("{proClassID}/Create-Lesson")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> CreateLesson(string proClassID, [FromForm] CreateProjectContentDto dto)
+        {
+            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(staffId))
+                return Unauthorized("Doesn't identify StaffID.");
+
+            dto.ProClassID = proClassID;
+
+            await _projectClassroomService.CreateProjectContentAsync(dto, staffId);
+
+            return Ok(new
+            {
+                Message = "Create Containt success",
+                ProClassID = proClassID
+            });
+
+        }
+
+        //===========CONTROLLER TO GET CONTENT DETAIL==========
+        [Authorize(Roles = ("Admin, Staff, Lecturer"))]
+        [HttpGet("{proClassId}/Content-Detail")]
+        public async Task<IActionResult> GetContentDetail(string proClassId, string contentId)
+        {
+            var detail = await _projectClassroomService.GetContentDetailAsync(proClassId, contentId);
+
+            if(detail == null)
+            {
+                return NotFound(new { Error = "Content does not exits." });
+            }
+
+            return Ok(detail);
         }
 
     }

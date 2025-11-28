@@ -17,5 +17,8 @@ namespace LmsMini.Application.Interfaces
 
         Task<ProjectClassroomDashboardDto> GetDashboardAsync(string proClassId);
 
+        Task CreateProjectContentAsync(CreateProjectContentDto dto, string staffId);
+
+        Task<ProjectContentDetailDto?> GetContentDetailAsync(string contentId, string proClassId);
     }
 }

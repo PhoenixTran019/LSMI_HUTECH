@@ -208,6 +208,7 @@ namespace LmsMini.Infrastructure.Services.Project
             await _context.SaveChangesAsync();
         }
 
+        //==========SERVICE TO GET ALL CONTENT OR MEETING NOTICE==========
         public async Task<ProjectClassroomDashboardDto> GetDashboardAsync(string proClassId)
         {
             if (string.IsNullOrWhiteSpace(proClassId))
@@ -245,6 +246,25 @@ namespace LmsMini.Infrastructure.Services.Project
                 })
                 .ToListAsync();
 
+            //Take Weekly Meeting
+            var meetings = await (
+                from m in _context.WeeklyMeetings
+                where m.ProClassId == proClassId
+                select new ProjectContentItemDto
+                {
+                    ProContentID = m.MeetingId.ToString(),
+                    Title = $"Weekly Meeting",
+                    ContentType = "WeeklyMeeting",
+                    Deadline = m.MeetingDate,
+                    
+                    //Take poster name
+                    PostedByName = _context.DepartmentStaffs
+                        .Where(s => s.StaffId == m.LecturerId)
+                        .Select(s => s.LastName)
+                        .FirstOrDefault() ?? "Unknown"
+                }
+             ).ToListAsync();
+
             return new ProjectClassroomDashboardDto
             {
                 ProClassID = classroom.ProClassId,
@@ -255,6 +275,187 @@ namespace LmsMini.Infrastructure.Services.Project
 
                 Contents = contents
             };
+        }
+
+        //==========SERVICE TO CREATE CONTENT==========
+        public async Task CreateProjectContentAsync(CreateProjectContentDto dto, string staffId)
+        {
+            var validTypes = new[] { "Notice", "AssignmentLate", "AssignmentNoLate" };
+
+            if (!validTypes.Contains(dto.ContentType))
+                throw new ArgumentException("Content Type doesn't valid!");
+
+            bool isAssigment = dto.ContentType == "AssigmentLate" || dto.ContentType == "AssigmentNoLate";
+
+            var menber = await _context.ProjectClassMems
+                .FirstOrDefaultAsync(x =>
+                    x.ProClassId == dto.ProClassID && x.LecturerId == staffId);
+
+            if (menber == null)
+                throw new UnauthorizedAccessException("You doesn't member in this class");
+
+            //Take Classroom name so set folder name
+            var classroom = await _context.ProjectClassrooms
+                .FirstOrDefaultAsync(c => c.ProClassId == dto.ProClassID);
+
+
+            //Create Content
+            string contentId = Uuidv7Generator.NewUuid7().ToString();
+            var newContent = new ProjectContent
+            {
+                ProContentId = contentId,
+                ProClassId = dto.ProClassID,
+                PostedBy = staffId,
+                Title = dto.Title,
+                ContentText = dto.ContentText,
+                ContentType = dto.ContentType,
+                Deadline = dto.Deadline,
+                CreateDate = DateTime.UtcNow
+            };
+
+            await _context.ProjectContents.AddAsync(newContent);
+
+            //Handle upload file if have
+            if (dto.Files != null && dto.Files.Count > 0)
+            {
+                string uploadFolder = Path.Combine("uploads", "ProjectClassConFiles", classroom.ClassroomName);
+
+                if (!Directory.Exists(uploadFolder))
+                    Directory.CreateDirectory(uploadFolder);
+
+                foreach(var file in dto.Files)
+                {
+                    if (file.Length > 0)
+                    {
+                        string fileId = Uuidv7Generator.NewUuid7().ToString();
+                        string fileName = file.FileName;
+                        string filePath = Path.Combine(uploadFolder, fileName);
+
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        var fileRecord = new ProConFile
+                        {
+                            ProConFileId = fileId,
+                            ProContentId = contentId,
+                            FileName = fileName,
+                            FilePath = filePath.Replace("\\", "/"),
+                            FileType = file.ContentType
+                        };
+
+                        await _context.ProConFiles.AddAsync(fileRecord);
+                    }
+                }
+            }
+
+            //Write log
+            var log = new ActivityLog
+            {
+                LogId = Uuidv7Generator.NewUuid7().ToString(),
+                StaffId = staffId,
+                DepartId = _context.StaffDeparts
+                    .Where(s => s.StaffId == staffId)
+                    .Select(s => s.DepartId)
+                    .FirstOrDefault(),
+                Action = "Create New Content",
+                TargetTable = "ProjectContents",
+                TargetId = contentId,
+                TargetName = dto.Title,
+                Timestap = DateTime.UtcNow,
+            };
+
+            await _context.ActivityLogs.AddAsync(log);
+
+            //Save all to DB
+
+            await _context.SaveChangesAsync();
+        }
+
+        //==========TAKE DETAIL CONTENT==========
+        public async Task<ProjectContentDetailDto?> GetContentDetailAsync(string contentId, string proClassId)
+        {
+            contentId = proClassId;
+
+            //=====DATAIL CONTENT=====
+            var content = await _context.ProjectContents
+                .Include(c => c.ProConFiles)
+                .FirstOrDefaultAsync(c => c.ProContentId == contentId);
+
+            if (content == null)
+                return null;
+
+            //====TAKE PERSOL WHO POST=====
+            var postedByName = await _context.DepartmentStaffs
+                .Where(s => s.StaffId == content.PostedBy)
+                .Select(s => s.LastName)
+                .FirstOrDefaultAsync();
+
+            //=====BUILD BASE DTO=====
+            var dto = new ProjectContentDetailDto
+            {
+                ProContentID = content.ProContentId,
+                Title = content.Title,
+                ContentText = content.ContentText,
+                PostedBy = postedByName,
+                CreateDate = content.CreateDate,
+                ContentType = content.ContentType,
+                Deadline = content.Deadline,
+                Files = content.ProConFiles.Select(f => new Application.DTOs.FileDto
+                {
+                    FileName = f.FileName,
+                    FilePath = f.FilePath,
+                    FileType = f.FileType
+                }).ToList(),
+            };
+
+            //=====IF ASSINMENT ======
+            if(content.ContentType == "AssignmentLate" || content.ContentType == "AssignmentNoLate")
+            {
+                //All student in classroom
+                var studentIdsInClass = await _context.ProjectClassMems
+                    .Where(m => m.ProClassId == content.ProClassId && m.AssignId != null)
+                    .Select(m => m.AssignId)
+                    .ToListAsync();
+
+                //Submit
+                var submissions = await _context.ProjectSubmissions
+                    .Where(s => s.ProContentId == contentId)
+                    .Include(s => s.ProjectSubmitFiles)
+                    .ToListAsync();
+
+                //List submit
+                dto.ProStudentSubmitted = (from sub in  submissions
+                                           join stu in _context.Students on sub.StudentId equals stu.StudentId
+                                           select new ProjectStudentSubmitDto
+                                           {
+                                               StudentID = stu.StudentId,
+                                               StudentName = stu.LastName + " " +stu.FirstName,
+                                               SubmitDate = sub.SubmitDate,
+                                               Score = sub.Score,
+                                               Feedback = sub.FeedBack,
+                                               Files = sub.ProjectSubmitFiles.Select(f => new Application.DTOs.FileDto
+                                               {
+                                                   FileName = f.FileName,
+                                                   FilePath = f.FilePath,
+                                                   FileType = f.FileType
+                                               }).ToList()
+
+                                           }).ToList();
+
+                //List doesn't submit
+                var submittedIDs = submissions.Select(s => s.StudentId).ToList();
+
+                dto.ProStudentNotSubmitted = await _context.Students
+                    .Where(s => studentIdsInClass.Contains(s.StudentId) && !submittedIDs.Contains(s.StudentId))
+                    .Select(s => new PorjectStudentInfoDto
+                    {
+                        StudentId = s.StudentId,
+                        StudentName = s.LastName + " " +s.FirstName
+                    }).ToListAsync();
+            }
+            return dto;
         }
 
     }
