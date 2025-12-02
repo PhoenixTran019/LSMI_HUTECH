@@ -374,14 +374,15 @@ namespace LmsMini.Infrastructure.Services.Project
         }
 
         //==========TAKE DETAIL CONTENT==========
-        public async Task<ProjectContentDetailDto?> GetContentDetailAsync(string contentId, string proClassId)
+        public async Task<ProjectContentDetailDto?> GetContentDetailAsync(string proClassId, string contentId)
         {
-            contentId = proClassId;
+
 
             //=====DATAIL CONTENT=====
             var content = await _context.ProjectContents
                 .Include(c => c.ProConFiles)
-                .FirstOrDefaultAsync(c => c.ProContentId == contentId);
+                .FirstOrDefaultAsync(c => c.ProContentId == contentId
+                           && c.ProClassId == proClassId);
 
             if (content == null)
                 return null;
@@ -456,6 +457,210 @@ namespace LmsMini.Infrastructure.Services.Project
                     }).ToListAsync();
             }
             return dto;
+        }
+
+        //==========SERVICE TO UPDATE PROJECT CONTENT==========
+        public async Task UpdateProjectContentAsync(ProContentUpdateDto dto, string staffId)
+        {
+            if (string.IsNullOrWhiteSpace(dto.ProContentID))
+                throw new ArgumentException("ContentID doesn't exists");
+
+            var content = await _context.ProjectContents
+                .Include(x => x.ProConFiles)
+                .FirstOrDefaultAsync(x => x.ProContentId == dto.ProContentID
+                                        && x.ProClassId == dto.ProContentID);
+
+            if (content == null)
+                throw new Exception("Does not find the content");
+
+            //Check update permission
+            var member = await _context.ProjectClassMems
+                .FirstOrDefaultAsync(x => x.ProClassId == dto.ProClassID
+                                        && x.LecturerId == staffId);
+
+            //Rule CHANGING CONTENT TYPE FROM NOTICE ↔ ASSIGNMENT IS NOT ALLOWED
+
+            bool isOldAssignment = content.ContentType == "AssignmentLate"
+                                || content.ContentType == "AssignmentNoLate";
+
+            bool isNewAssignment = dto.ContentType == "AssignmentLate"
+                                || dto.ContentType == "AssignmentNoLate";
+
+            //conversion prohibited Notice -> Assignment and Assignment -> Notices
+            if (isOldAssignment != isNewAssignment)
+                throw new Exception("It is not possible to change the content type between Assignment and Notice.");
+
+            if (!isOldAssignment)
+            {
+                dto.ContentType = "Notice";
+                dto.Deadline = null;
+            }
+
+            //if assignment -> allow Late <-> NoLate transition
+            if (isOldAssignment)
+            {
+                if (dto.ContentType != "AssignmentLate" && dto.ContentType != "AssignmentNoLate")
+                    throw new Exception("Assignment type doesn't exists");
+
+                content.Deadline = dto.Deadline;
+            }
+
+            //Update basic Infor Content
+            content.Title = dto.Title;
+            content.ContentText = dto.ContentText;
+            content.ContentType = dto.ContentType;
+
+            //Handle to delete file if have
+            if(dto.FilesToDelete != null && dto.FilesToDelete.Any())
+            {
+                foreach(var fileId in dto.FilesToDelete)
+                {
+                    var file = await _context.ProConFiles.FindAsync(fileId);
+                    if(file != null)
+                    {
+                        if (File.Exists(file.FilePath))
+                            File.Delete(file.FilePath);
+
+                        _context.ProConFiles.Remove(file);
+                    }
+                }
+            }
+
+            //Handle file if have new file
+            if(dto.NewFiles != null && dto.NewFiles.Any())
+            {
+                var classroom = await _context.ProjectClassrooms
+                    .FirstOrDefaultAsync(x => x.ProClassId == dto.ProClassID);
+
+                string uploadFolder = Path.Combine("uploads", "ProjectClassConFiles", classroom.ClassroomName);
+
+                if (!Directory.Exists(uploadFolder))
+                    Directory.CreateDirectory(uploadFolder);
+
+                foreach (var file in dto.NewFiles)
+                {
+                    string fileId = Uuidv7Generator.NewUuid7().ToString();
+                    string newFilePath = Path.Combine(uploadFolder, fileId + Path.GetExtension(file.FileName));
+
+                    using (var stream = new FileStream(newFilePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    var newFile = new ProConFile
+                    {
+                        ProConFileId = fileId,
+                        ProContentId = content.ProContentId,
+                        FileName = file.FileName,
+                        FilePath = newFilePath,
+                        FileType = file.ContentType
+                    };
+                    _context.ProConFiles.Add(newFile);
+
+                }
+            }
+
+            //Write Log
+            var log = new ActivityLog
+            {
+                LogId = Uuidv7Generator.NewUuid7().ToString(),
+                StaffId = staffId,
+                DepartId = _context.StaffDeparts
+                    .Where(s => s.DepartId == staffId)
+                    .Select(s => s.DepartId)
+                    .FirstOrDefault(),
+                Action = "Create New Content",
+                TargetTable = "ProjectContents",
+                TargetId = dto.ProContentID,
+                TargetName = dto.Title,
+                Timestap = DateTime.UtcNow,
+            };
+            _context.ActivityLogs.Add(log);
+
+        }
+
+        //==========SERVICE TO DELETE PROJECT CONTENT==========
+        public async Task DeleteProContentAsync(string proClassId, string contentId, string staffId)
+        {
+            if (string.IsNullOrWhiteSpace(proClassId) || string.IsNullOrWhiteSpace(contentId))
+                throw new AggregateException("ProClassID or ContentID doesn't exists");
+            //Check permissions
+
+            var member = await _context.ProjectClassMems
+                .FirstOrDefaultAsync(x => x.ProClassId == proClassId && x.LecturerId == staffId);
+
+            if (member == null)
+                throw new Exception("You not in this class");
+
+            if (member.RoleInClass != "Lecturer" && member.RoleInClass != "Staff" && member.RoleInClass != "Admin")
+                throw new Exception("You not have Permissions in this class");
+
+            //Find Content
+            var content = await _context.ProjectContents
+                .Include(c => c.ProConFiles)
+                .FirstOrDefaultAsync(c => c.ProContentId == contentId && c.ProContentId == proClassId);
+
+            if (content == null)
+                throw new Exception("doesn't find this content");
+
+            //Delete all file content
+            if (content.ProConFiles != null)
+            {
+                foreach(var f in content.ProConFiles)
+                {
+                    if (File.Exists(f.FilePath))
+                        File.Delete(f.FilePath);
+
+                    _context.ProConFiles.Remove(f);
+                }
+            }
+            
+            //Find all submit
+            var submissions = await _context.ProjectSubmissions
+                .Where(s => s.ProContentId == contentId)
+                .ToListAsync();
+
+            foreach (var sub in submissions)
+            {
+                //Delete all submission file
+                var subFiles = await _context.ProjectSubmitFiles
+                    .Where(sf => sf.ProSubmitId == sub.ProSubmitId)
+                    .ToListAsync();
+
+                foreach (var sf in subFiles)
+                {
+                    if(File.Exists(sf.FilePath))
+                        File.Delete(sf.FilePath);
+
+                    _context.ProjectSubmitFiles.Remove(sf);
+                }
+
+                //Delete Submissions
+                _context.ProjectSubmissions.Remove(sub);
+            }
+
+            //Delete main content
+            _context.ProjectContents.Remove(content);
+
+            //Write log
+            var log = new ActivityLog
+            {
+                LogId = Uuidv7Generator.NewUuid7().ToString(),
+                StaffId = staffId,
+                DepartId = _context.StaffDeparts
+                    .Where(s => s.StaffId == staffId)
+                    .Select(s => s.DepartId)
+                    .FirstOrDefault(),
+                Action = "Delete Content" + content.Title,
+                TargetTable = "ProjectContents",
+                TargetId = contentId,
+                TargetName = content.Title,
+                Timestap = DateTime.UtcNow
+            };
+
+            await _context.ActivityLogs.AddAsync(log);
+
+            await _context.SaveChangesAsync();
         }
 
     }

@@ -20,5 +20,9 @@ namespace LmsMini.Application.Interfaces
         Task CreateProjectContentAsync(CreateProjectContentDto dto, string staffId);
 
         Task<ProjectContentDetailDto?> GetContentDetailAsync(string contentId, string proClassId);
+
+        Task UpdateProjectContentAsync (ProContentUpdateDto dto, string staffId);
+
+        Task DeleteProContentAsync(string proClassId, string contentId, string staffId);
     }
 }

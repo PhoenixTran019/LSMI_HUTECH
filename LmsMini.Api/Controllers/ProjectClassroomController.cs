@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace LmsMini.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/[controller]/")]
     public class ProjectClassroomController : Controller
     {
         private readonly IProjectClassroomService _projectClassroomService;
@@ -103,7 +103,7 @@ namespace LmsMini.Api.Controllers
 
         //==========SERVICE TO CREATE NEW LESSON==========
         [Authorize(Roles =("Admin, Staff, Lecturer"))]
-        [HttpPost("{proClassID}/Create-Lesson")]
+        [HttpPost("{proClassID}/Create-Content")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateLesson(string proClassID, [FromForm] CreateProjectContentDto dto)
         {
@@ -125,7 +125,7 @@ namespace LmsMini.Api.Controllers
 
         //===========CONTROLLER TO GET CONTENT DETAIL==========
         [Authorize(Roles = ("Admin, Staff, Lecturer"))]
-        [HttpGet("{proClassId}/Content-Detail")]
+        [HttpGet("{proClassId}/Content-Detail/{contentId}")]
         public async Task<IActionResult> GetContentDetail(string proClassId, string contentId)
         {
             var detail = await _projectClassroomService.GetContentDetailAsync(proClassId, contentId);
@@ -136,6 +136,32 @@ namespace LmsMini.Api.Controllers
             }
 
             return Ok(detail);
+        }
+
+        //==========CONTROLLER TO UPDATE CONTENT==========
+        [Authorize(Roles =("Admin,Staff, Lecturer"))]
+        [HttpPut("{proClassId}/Update-content/{contentId}")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateContent(string proClassId, string contentId, [FromForm] ProContentUpdateDto dto)
+        {
+            try
+            {
+                var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                dto.ProClassID = proClassId;
+                dto.ProContentID = contentId;
+
+                await _projectClassroomService.UpdateProjectContentAsync(dto, staffId);
+
+                return Ok(new
+                {
+                    Message = "Update content successs"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
     }
