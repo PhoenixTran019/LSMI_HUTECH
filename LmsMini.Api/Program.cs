@@ -8,6 +8,7 @@ using LmsMini.Domain.Models;
 using LmsMini.Infrastructure.Services;
 using LmsMini.Infrastructure.Services.Classrooms;
 using LmsMini.Infrastructure.Services.Project;
+using LmsMini.Infrastructure.Services.Projects;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -69,6 +70,9 @@ builder.Services.AddScoped<ProjectMajorDropdownSchemaFilter>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IProjectClassroomService, ProjectClassroomService>();
 builder.Services.AddScoped<ProjectFilterSchemaFilter>();
+builder.Services.AddScoped<IProWeeklyService, ProWeeklyMeeting>();
+builder.Services.AddScoped<ILecWeekReportService, LecWeekReportService>();
+
 // ======================================================================
 // 3.6 Đăng ký FluentValidation
 // ======================================================================

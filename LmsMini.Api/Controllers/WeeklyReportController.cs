@@ -1,30 +1,31 @@
-﻿using LmsMini.Application.DTOs.ProjectClassroom;
+﻿using LmsMini.Application.DTOs.ProjectWeeklyReport;
 using LmsMini.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LmsMini.Api.Controllers
 {
+
     [ApiController]
-    [Route("api/classrooms")]
+    [Route("api/weeklyProjectReport/")]
     public class WeeklyReportController : Controller
     {
-        private readonly IProWeeklyService _proWeeklyService;
+        private readonly ILecWeekReportService _weekReportService;
 
-        public WeeklyReportController(IProWeeklyService proWeeklyService)
+        public WeeklyReportController(ILecWeekReportService weekReportService)
         {
-            _proWeeklyService = proWeeklyService;
+            _weekReportService = weekReportService;
         }
 
-        [Authorize(Roles = "Admin, Staff, Lecturer")]
-        [HttpPost("{proClassId}/create-Meeting")]
-        public async Task<IActionResult> CreateMeeting (string proClassId, CreateMeetingDto dto, string staffId)
+        [Authorize(Roles ="Admin, Staff, Lecturer")]
+        [HttpPost("Weekly-Report/create")]
+        public async Task<IActionResult> CreateWeeklyReport([FromBody] CreateLecWeekReportDto dto)
         {
-            staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var lecturerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
-            var meetingId = await _proWeeklyService.CreateMeetingAsync(proClassId, dto, staffId);
+            var id = await _weekReportService.CreateLecWeekReportAsync(dto, lecturerId);
 
-            return Ok(meetingId);
+            return Ok(new { ReportID = id, Message = "Submit Weekly Report Success" });
         }
     }
 }

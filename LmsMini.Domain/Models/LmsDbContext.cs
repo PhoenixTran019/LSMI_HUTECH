@@ -652,7 +652,7 @@ public partial class LmsDbContext : DbContext
                 .HasColumnName("AssigntID");
             entity.Property(e => e.ReportWritter).HasMaxLength(155);
             entity.Property(e => e.SubmitDate).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.WeeklyMeeting).HasMaxLength(155);
+            entity.Property(e => e.WeekDate).HasColumnName("WeekDate");
 
             entity.HasOne(d => d.Assignt).WithMany(p => p.LecturerWeeklyReports)
                 .HasForeignKey(d => d.AssigntId)
@@ -662,9 +662,7 @@ public partial class LmsDbContext : DbContext
                 .HasForeignKey(d => d.ReportWritter)
                 .HasConstraintName("FK__LecturerW__Repor__30C33EC3");
 
-            entity.HasOne(d => d.WeeklyMeetingNavigation).WithMany(p => p.LecturerWeeklyReports)
-                .HasForeignKey(d => d.WeeklyMeeting)
-                .HasConstraintName("FK__LecturerW__Weekl__31B762FC");
+            
         });
 
         modelBuilder.Entity<Lesson>(entity =>

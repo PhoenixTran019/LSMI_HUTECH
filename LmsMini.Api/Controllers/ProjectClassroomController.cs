@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace LmsMini.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]/")]
+    [Route("api/ProjectClassroom/")]
     public class ProjectClassroomController : Controller
     {
         private readonly IProjectClassroomService _projectClassroomService;
@@ -56,7 +56,7 @@ namespace LmsMini.Api.Controllers
         [HttpGet("project-classroom-homepage")]
         public async Task<IActionResult> GetMyClassrooms()
         {
-            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             var result = await _projectClassroomService.GetMyClassroomsAsync(staffId);
 
