@@ -114,5 +114,28 @@ namespace LmsMini.Infrastructure.Services.Projects
                 })
                 .ToListAsync();
         }
+
+        public async Task<WeekReportDetailDto> GetWeekReportDetailAsync(string reportId)
+        {
+            //Find report by ID
+            var report = await _context.LecturerWeeklyReports
+                .Include(r => r.Assignt)
+                .FirstOrDefaultAsync(r => r.LecReportId == reportId);
+
+            if (report == null)
+                throw new KeyNotFoundException("Report Not Found");
+
+            return new WeekReportDetailDto
+            {
+                ReportID = report.LecReportId,
+                AssignID = report.AssigntId,
+                WriteBy = report.ReportWritter,
+                GroupName = report.Assignt.GroupName,
+                WeekNumber = report.WeekNumber,
+                WeekDate = report.WeekDate,
+                ReportContent = report.ReportContent,
+                SubmitDate = report.SubmitDate
+            };
+        }
     }
 }

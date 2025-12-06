@@ -28,6 +28,17 @@ Log.Logger = new LoggerConfiguration()
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowNgrok",
+        p => p
+            .WithOrigins("https://aryan-hypaesthesic-answerably.ngrok-free.dev")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+    );
+});
+
 // ======================================================================
 // 2. Thay thế logger mặc định của Host bằng Serilog
 // ======================================================================
@@ -168,7 +179,10 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "LmsMini API v1"));
+    // ======================================================================
+
 }
+app.UseCors("AllowNgrok");
 
 // ======================================================================
 // 4.3 Middleware chung: HTTPS, Authentication, Authorization, Controllers

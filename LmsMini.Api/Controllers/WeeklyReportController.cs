@@ -44,5 +44,14 @@ namespace LmsMini.Api.Controllers
 
             return Ok(data);
         }
+
+        [Authorize]
+        [HttpGet("Detail/{reportId}")]
+        public async Task<IActionResult> GetReportDetail(string reportId)
+        {
+            var result = await _weekReportService.GetWeekReportDetailAsync(reportId);
+
+            return Ok(result);
+        }
     }
 }
