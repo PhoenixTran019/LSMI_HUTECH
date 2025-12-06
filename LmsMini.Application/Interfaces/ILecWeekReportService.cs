@@ -10,5 +10,7 @@ namespace LmsMini.Application.Interfaces
     public interface ILecWeekReportService
     {
         Task<string>CreateLecWeekReportAsync(CreateLecWeekReportDto dto, string lecturerId);
+
+        Task<List<WeekReportDashboarDto>> GetWeekReportDashboardAsync(string username, string personType, string role);
     }
 }

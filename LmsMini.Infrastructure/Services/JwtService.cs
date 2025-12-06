@@ -81,13 +81,17 @@ namespace LmsMini.Infrastructure.Services
 
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.UserId),
+                 new Claim(JwtRegisteredClaimNames.Sub, user.UserId),
+
                 new Claim(ClaimTypes.Name, user.Username?? string.Empty),
+                
+                //Take ID together for any user -> dentifin by BE PersonType
+                new Claim("userId", user.UserId),
 
                 //Adding to claim StaffID
-                new Claim("StaffID", user.Username?? string.Empty),
+                new Claim(ClaimTypes.Role, roleName),
 
-                new Claim(ClaimTypes.Role, roleName)
+                new Claim("personType", user.Role.RoleName ?? string.Empty),
             };
 
             

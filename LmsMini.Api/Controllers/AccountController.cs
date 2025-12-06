@@ -87,8 +87,9 @@ namespace LmsMini.Api.Controllers
             };
             return Ok(new LoginResponseDto
             {
+                User_name = user.Username,
                 Token = token,
-                   Role = user.Role.RoleName,
+                Role = user.Role.RoleName,
                 RedirectUrl = redirectUrl
             });
         }

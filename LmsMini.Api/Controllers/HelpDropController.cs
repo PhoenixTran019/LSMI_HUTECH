@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace LmsMini.Api.Controllers
 {
     [ApiController]
+    [Route("api/Helper/")]
     public class HelpDropController : Controller
     {
         private readonly IDropHeplerService _dropHeplerService;
@@ -14,7 +15,7 @@ namespace LmsMini.Api.Controllers
             _dropHeplerService = dropHeplerService;
         }
 
-        [Route("api/Helper/")]
+        
         [Authorize(Roles ="Lecturer, Staff")]
         [HttpGet("/weekly-report/groups")]
         public async Task<IActionResult> GetGroupDropDown()

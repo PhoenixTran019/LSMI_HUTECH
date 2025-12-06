@@ -22,21 +22,19 @@ namespace LmsMini.Infrastructure.Services
 
         public async Task<List<GroupProjectDropDto>> GetGroupsForLecturerAsync(string lecturerId)
         {
-            //Lectuer 
             var groups = await (
                 from assign in _context.ProjectAssigns
-                join mem in  _context.ProjectClassMems
+                join mem in _context.ProjectClassMems
                     on assign.AssignId equals mem.AssignId
-                where mem.ProClassId == proClassId
-                    && mem.LecturerId == lecturerId
+                where mem.LecturerId == lecturerId
                     && mem.RoleInClass == "Lecturer"
                 select new GroupProjectDropDto
                 {
                     AssignID = assign.AssignId,
                     GroupName = assign.GroupName
                 }
-                ).Distinct().ToListAsync();
-
+            ).Distinct().ToListAsync();
+            
             return groups;
         }
     }

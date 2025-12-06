@@ -22,7 +22,7 @@ namespace LmsMini.Infrastructure.Services.Projects
 
         public async Task<string> CreateLecWeekReportAsync(CreateLecWeekReportDto dto, string lecturerId)
         {
-            var mem = await _context.ProjectClassMems
+            var mem = await _context.ProjectAssigns
                 .AnyAsync(x => x.AssignId == dto.AssignId
                                 && x.LecturerId == lecturerId);
 
@@ -69,8 +69,50 @@ namespace LmsMini.Infrastructure.Services.Projects
             await _context.SaveChangesAsync();
 
             return reportId;
+        }
 
+        public async Task<List<WeekReportDashboarDto>> GetWeekReportDashboardAsync(string username, string personType, string role)
+        {
+            var query = _context.LecturerWeeklyReports
+                .Include(r => r.Assignt)
+                .AsQueryable();
 
+            //---Student just only see they report
+            if (role == "Student")
+            {
+                var assignIds = await _context.ProjectMenbers
+                    .Where(m  => m.StudentId == username)
+                    .Select(m => m.RegistId)
+                    .ToListAsync();
+
+                query = query.Where(r => assignIds.Contains(r.AssigntId));
+            }
+
+            else if (role == "Lecturer")
+            {
+                //Take AssignId Lecturer
+                var lecturerAssignIds = await _context.ProjectAssigns
+                    .Where(a => a.LecturerId == username)
+                    .Select(a => a.AssignId)
+                    .ToListAsync();
+
+                query = query.Where(r => lecturerAssignIds.Contains(r.AssigntId));
+            }
+            else
+            {
+
+            }
+
+            return await query
+                .Select(r => new WeekReportDashboarDto
+                {
+                    AssignID = r.AssigntId,
+                    WriterName = r.ReportWritter,
+                    WeekDate = r.WeekDate,
+                    SubmitData = r.SubmitDate,
+                    GroupName = r.Assignt.GroupName
+                })
+                .ToListAsync();
         }
     }
 }
