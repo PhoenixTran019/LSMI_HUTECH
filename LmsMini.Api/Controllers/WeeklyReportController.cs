@@ -2,6 +2,7 @@
 using LmsMini.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace LmsMini.Api.Controllers
 {
@@ -52,6 +53,37 @@ namespace LmsMini.Api.Controllers
             var result = await _weekReportService.GetWeekReportDetailAsync(reportId);
 
             return Ok(result);
+        }
+
+        [Authorize(Roles = "Lecturer")]
+        [HttpPut("Update-Report/{reportId}")]
+        public async Task<IActionResult> UpdateReport(string reportId, [FromBody] LecUpdateProReportDto dto)
+        {
+            var lecturerId = User.FindFirst("UserId")?.Value;
+
+            dto.ReportID = reportId;
+
+            await _weekReportService.UpdateLecProWeekReportAsync(dto, lecturerId);
+
+            return Ok(new
+            {
+                Message = "Update success",
+                ReportId = reportId
+            });
+        }
+
+        [Authorize (Roles = "Admin, Lecturer")]
+        [HttpDelete("Delete-Report/{reportId}")]
+        public async Task<IActionResult> DeleteWeeklyReport (string reportId)
+        {
+            var userId = User.FindFirst("userId")?.Value;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            await _weekReportService.DeleteWeeklyReport(reportId, userId, role);
+
+            return Ok(new {
+                    Message = "Delete succes"
+            });
         }
     }
 }

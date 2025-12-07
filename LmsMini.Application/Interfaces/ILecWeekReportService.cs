@@ -1,4 +1,5 @@
 ﻿using LmsMini.Application.DTOs.ProjectWeeklyReport;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,5 +15,9 @@ namespace LmsMini.Application.Interfaces
         Task<List<WeekReportDashboarDto>> GetWeekReportDashboardAsync(string username, string personType, string role);
 
         Task<WeekReportDetailDto> GetWeekReportDetailAsync(string reportId);
+
+        Task UpdateLecProWeekReportAsync(LecUpdateProReportDto dto, string lecturerId);
+
+        Task DeleteWeeklyReport(string reportId, string userId, string role);
     }
 }

@@ -39,6 +39,16 @@ builder.Services.AddCors(options =>
     );
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowRazorDev", policy =>
+    {
+        policy.WithOrigins("https://localhost:7251")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 // ======================================================================
 // 2. Thay thế logger mặc định của Host bằng Serilog
 // ======================================================================
@@ -183,6 +193,7 @@ if (app.Environment.IsDevelopment())
 
 }
 app.UseCors("AllowNgrok");
+app.UseCors("AllowRazorDev");
 
 // ======================================================================
 // 4.3 Middleware chung: HTTPS, Authentication, Authorization, Controllers
