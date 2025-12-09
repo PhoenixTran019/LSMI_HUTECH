@@ -36,8 +36,16 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             var clasroomId = Uuidv7Generator.NewUuid7().ToString();
             var inviteCode = InviteCodeGenerator.GenerateInviteCode(8);
 
+            var classSubEntity = await _context.Subjects.FirstOrDefaultAsync(d => d.SubId == dto.ClassSub);
+            if (classSubEntity == null) throw new AggregateException("Invalid Subject");
+
+            var mainClassEntity = await _context.Classes.FirstOrDefaultAsync(cl => cl.ClassId == dto.MainClass);
+            if (mainClassEntity == null) throw new AggregateException("Invaild Main Class");
+
+
+
             //If have main class, take Course of this
-            Class? mainClassEntity = null;
+
             if (!string.IsNullOrWhiteSpace(dto.MainClass))
             {
                 mainClassEntity = await _context.Classes
@@ -48,7 +56,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             {
                 ClassroomId = clasroomId,
                 ClassName = dto.ClassName,
-                ClassSub = dto.ClassSub,
+                ClassSub = classSubEntity.SubId,
                 MainClass = mainClassEntity?.ClassId,
                 Description = dto.Description,
                 InviteCode = inviteCode,
@@ -218,6 +226,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 {
                     LessonId = l.LessonId,
                     Title = l.Title,
+                    CreatBy = l.CreateByNavigation.FirstName + " " + l.CreateByNavigation.LastName,
                     CreateAt = l.CreateAt,
                 }).ToListAsync();
 
@@ -227,6 +236,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 {
                     AssignId = a.AssignId,
                     Title = a.Title,
+                    CreateBy = a.Teacher.FirstName + " " + a.Teacher.LastName,
                     Deadline = a.Deadline,
                     DeadlineStatus = a.Deadline > DateTime.UtcNow ? "Valid" : "Overdue"
 

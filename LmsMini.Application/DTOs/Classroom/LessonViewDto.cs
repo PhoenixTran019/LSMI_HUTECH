@@ -9,7 +9,11 @@ namespace LmsMini.Application.DTOs.Classroom
     public class LessonViewDto
     {
         public string? LessonId { get; set; }
+
         public string? Title { get; set; }
+
+        public string? CreatBy { get; set; }
+
         public DateTime? CreateAt { get; set; }
     }
 }

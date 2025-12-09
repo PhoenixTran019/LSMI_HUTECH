@@ -86,7 +86,6 @@ builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<IClassroomService, ClassroomService>();
 builder.Services.AddScoped<IAssigmentService, AssignmentService>();
 builder.Services.AddScoped<ILessonService, LessonService>();
-builder.Services.AddScoped<StudentDropdownSchemaFilter>();
 builder.Services.AddScoped<ProjectMajorDropdownSchemaFilter>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IProjectClassroomService, ProjectClassroomService>();

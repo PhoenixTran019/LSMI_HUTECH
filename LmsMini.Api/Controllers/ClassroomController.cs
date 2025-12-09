@@ -23,7 +23,7 @@ namespace LmsMini.Api.Controllers
             _context = context;
         }
 
-        //Create Classroom
+        //==========Create Classroom=========
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpPost("create-classroom")]
         public async Task<IActionResult> CreateClassroom([FromBody] CreateClassroomDto dto)
@@ -105,12 +105,16 @@ namespace LmsMini.Api.Controllers
             return succes ? Ok() : BadRequest("Member not found");
         }
 
-        //Get view  lesson and assignment in classroom
-        [Authorize(Roles = "Staff,Lecturer,Admin")]
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetClassroomOverview (string id)
+        //==========Get view  lesson and assignment in classroom==========
+        [Authorize]
+        [HttpGet("{classroomId}/Classroom-Dashboard")]
+        public async Task<IActionResult> GetClassroomOverview (string classroomId)
         {
-            var result = await _classroomService.GetOverviewAsync(id);
+            var result = await _classroomService.GetOverviewAsync(classroomId);
+
+            if (result == null)
+                return NotFound("Classroom not found.");
+
             return Ok(result);
         }
 

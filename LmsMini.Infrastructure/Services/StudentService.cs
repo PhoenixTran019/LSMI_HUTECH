@@ -26,13 +26,13 @@ namespace LmsMini.Infrastructure.Services
             if (dto == null) throw new ArgumentNullException(nameof(dto));
 
             //Lấy ID thực từ dropdown "ID | Name"
-            var departEntity = await _context.Departments.FirstOrDefaultAsync(d => d.DepartName == dto.DepartID);
+            var departEntity = await _context.Departments.FirstOrDefaultAsync(d => d.DepartId == dto.DepartID);
             if (departEntity == null) throw new ArgumentException("Invalid Depart name");
 
-            var classEntity = await _context.Classes.FirstOrDefaultAsync(c => c.ClassName == dto.ClassID);
+            var classEntity = await _context.Classes.FirstOrDefaultAsync(c => c.ClassId == dto.ClassID);
             if (classEntity == null) throw new ArgumentException("Invalid Classes name");
 
-            var majorEntity = await _context.Majors.FirstOrDefaultAsync(m => m.MajorName == dto.StuMajor);
+            var majorEntity = await _context.Majors.FirstOrDefaultAsync(m => m.MajorId == dto.StuMajor);
             if (majorEntity == null) throw new ArgumentException("Invalid Major Name");
 
             // Normalize to not differentiate between upper/lower case
