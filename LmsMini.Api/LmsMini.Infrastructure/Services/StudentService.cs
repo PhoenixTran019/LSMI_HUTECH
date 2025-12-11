@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using LmsMini.Application.Common.Helpers;
 using LmsMini.Application.DTOs.Student;
@@ -21,32 +22,66 @@ namespace LmsMini.Infrastructure.Services
 
         /// <summary>
         /// Tạo sinh viên mới + account đăng nhập tương ứng.
-        /// Username của tài khoản sẽ = StudentID (để login / JWT claim dùng được).
+        /// Username của tài khoản sẽ = StudentID (đã chuẩn hoá) để login / JWT claim dùng được.
         /// </summary>
         /// <param name="dto">Thông tin sinh viên từ DTO</param>
         /// <param name="staffId">StaffID của người tạo (TrainingManager/Admin)</param>
         /// <returns>
         /// true: tạo thành công;
-        /// false: StudentID đã tồn tại hoặc chưa cấu hình Role "Student".
+        /// false: StudentID / Username đã tồn tại hoặc chưa cấu hình Role "Student".
         /// </returns>
         public async Task<bool> CreateStudentWithAccountAsync(CreateStudentDto dto, string staffId)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
 
             // -----------------------------------------------------------------
-            // 1. Kiểm tra StudentID đã tồn tại chưa
+            // 1. Chuẩn hoá StudentID & kiểm tra hợp lệ
             // -----------------------------------------------------------------
-            var exists = await _context.Students
-                .AnyAsync(s => s.StudentId == dto.StudentID);
+            var normalizedStudentId = dto.StudentID?.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedStudentId))
+                throw new ArgumentException("StudentID is required.", nameof(dto));
 
-            if (exists)
+            // Dùng lowercase để check trùng nhưng vẫn có thể lưu đúng form nếu sau này cần
+            var normalizedLower = normalizedStudentId.ToLower();
+
+            // -----------------------------------------------------------------
+            // 2. Kiểm tra StudentID / Username đã tồn tại chưa (case-insensitive)
+            // -----------------------------------------------------------------
+            var studentExists = await _context.Students
+                .AnyAsync(s => s.StudentId.ToLower() == normalizedLower);
+
+            var userExists = await _context.Users
+                .AnyAsync(u => u.Username.ToLower() == normalizedLower);
+
+            if (studentExists || userExists)
             {
-                // StudentID đã tồn tại -> trả false để controller trả BadRequest
+                // StudentID hoặc Username đã tồn tại -> trả false để controller trả BadRequest
                 return false;
             }
 
             // -----------------------------------------------------------------
-            // 2. Lấy Role "Student"
+            // 3. Lấy entity Department / Class / Major từ ID trong DTO
+            // -----------------------------------------------------------------
+            var departEntity = await _context.Departments
+                .FirstOrDefaultAsync(d => d.DepartId == dto.DepartID);
+
+            if (departEntity == null)
+                throw new ArgumentException("Invalid Department.", nameof(dto.DepartID));
+
+            var classEntity = await _context.Classes
+                .FirstOrDefaultAsync(c => c.ClassId == dto.ClassID);
+
+            if (classEntity == null)
+                throw new ArgumentException("Invalid Class.", nameof(dto.ClassID));
+
+            var majorEntity = await _context.Majors
+                .FirstOrDefaultAsync(m => m.MajorId == dto.StuMajor);
+
+            if (majorEntity == null)
+                throw new ArgumentException("Invalid Major.", nameof(dto.StuMajor));
+
+            // -----------------------------------------------------------------
+            // 4. Lấy Role "Student"
             // -----------------------------------------------------------------
             var studentRole = await _context.Roles
                 .FirstOrDefaultAsync(r => r.RoleName == "Student");
@@ -58,48 +93,77 @@ namespace LmsMini.Infrastructure.Services
             }
 
             // -----------------------------------------------------------------
-            // 3. Tạo User mới (Username = StudentID)
+            // 5. Tạo User mới (Username = StudentID chuẩn hoá)
             // -----------------------------------------------------------------
             var userId = Uuidv7Generator.NewUuid7().ToString();
+
+            // Nếu DTO không truyền password, dùng StudentID làm password mặc định
+            var rawPassword = string.IsNullOrWhiteSpace(dto.Password)
+                ? normalizedStudentId
+                : dto.Password;
+
+            var passwordHash = _jwtService.HashPassword(rawPassword);
 
             var user = new User
             {
                 UserId = userId,
-                // RẤT QUAN TRỌNG: Username = StudentID để đúng yêu cầu nhóm
-                Username = dto.StudentID,
-                PasswordHash = _jwtService.HashPassword(dto.Password),
+                // Quan trọng: Username = StudentID (đã chuẩn hoá) theo quy ước nhóm
+                Username = normalizedStudentId,
+                PasswordHash = passwordHash,
                 RoleId = studentRole.RoleId,
-                Status = "Active" // bạn có thể đổi thành trạng thái khác nếu muốn
-                // CreatedAt để DB tự set default GETDATE()
+                Status = "Active"
+                // CreatedAt có thể để DB tự set default GETDATE()
             };
 
             // -----------------------------------------------------------------
-            // 4. Tạo Student mới, link với User vừa tạo
+            // 6. Tạo Student mới, link với User vừa tạo
             // -----------------------------------------------------------------
             var student = new Student
             {
-                StudentId = dto.StudentID,
+                StudentId = normalizedStudentId,
                 UserId = userId,
-                DepartId = dto.DepartID,
-                ClassId = dto.ClassID,
-                StuMajor = dto.StuMajor,
+                DepartId = departEntity.DepartId,
+                ClassId = classEntity.ClassId,
+                StuMajor = majorEntity.MajorId,
+
                 FirstName = dto.FirstName,
                 LastName = dto.LastName,
                 PhoneNum = dto.PhoneNumber,
-                // tạm để Emergency phone trống, nếu sau này FE có field thì map vào
+
+                // Tạm để Emergency phone / Address / Image trống,
+                // nếu sau này FE có field thì map thêm.
                 PhoneEmer = null,
                 Mail = dto.Email,
-                // Entity scaffold từ SQL thường là Dob (không phải DOB)
                 Dob = dto.DOB,
-                // Đảm bảo cột Gender đã được thêm vào bảng Students + Entity Student
                 Gender = dto.Gender,
-                Address = null,     // có thể cho FE nhập sau
-                Image = null,       // avatar sau
+                Address = null,
+                Image = null,
+
                 EnrollmentDate = dto.EnrollmentDate
             };
 
             // -----------------------------------------------------------------
-            // 5. Dùng transaction để đảm bảo: hoặc tạo cả User + Student, hoặc rollback
+            // 7. Ghi ActivityLog: ai (StaffId) đã tạo student + account
+            // -----------------------------------------------------------------
+            var staffDepartId = await _context.StaffDeparts
+                .Where(s => s.StaffId == staffId)
+                .Select(s => s.DepartId)
+                .FirstOrDefaultAsync();
+
+            var log = new ActivityLog
+            {
+                LogId = Uuidv7Generator.NewUuid7().ToString(),
+                StaffId = staffId,
+                DepartId = staffDepartId,
+                Action = "Create new Student and their Account",
+                TargetTable = "Students, Users",
+                TargetId = normalizedStudentId,
+                TargetName = $"{dto.FirstName} {dto.LastName}",
+                Timestap = DateTime.UtcNow
+            };
+
+            // -----------------------------------------------------------------
+            // 8. Dùng transaction để đảm bảo: hoặc tạo cả User + Student + Log, hoặc rollback
             // -----------------------------------------------------------------
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -107,6 +171,7 @@ namespace LmsMini.Infrastructure.Services
             {
                 _context.Users.Add(user);
                 _context.Students.Add(student);
+                _context.ActivityLogs.Add(log);
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -116,7 +181,8 @@ namespace LmsMini.Infrastructure.Services
             catch
             {
                 await transaction.RollbackAsync();
-                throw; // để bubble lên log lỗi ra ngoài (Swagger / console)
+                // Cho phép bubble lỗi để log ra ngoài (Swagger / console)
+                throw;
             }
         }
     }
