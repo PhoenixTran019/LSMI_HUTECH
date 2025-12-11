@@ -21,6 +21,8 @@ public partial class Classroom
 
     public string? MainClass { get; set; }
 
+    public DateTime? CreateDate { get; set; }
+
     public virtual ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
 
     public virtual Subject? ClassSubNavigation { get; set; }

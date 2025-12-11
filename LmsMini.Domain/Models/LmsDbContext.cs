@@ -265,6 +265,7 @@ public partial class LmsDbContext : DbContext
             entity.Property(e => e.ClassSub).HasMaxLength(155);
             entity.Property(e => e.CreateBy).HasMaxLength(155);
             entity.Property(e => e.Description).HasMaxLength(555);
+            entity.Property(e => e.CreateDate).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.InviteCode).HasMaxLength(15);
             entity.Property(e => e.MainClass).HasMaxLength(155);
 

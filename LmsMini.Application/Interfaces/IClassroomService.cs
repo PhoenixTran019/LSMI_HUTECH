@@ -23,6 +23,8 @@ namespace LmsMini.Application.Interfaces
 
         Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId);
 
+        Task<bool> UpdateClassroomAsync(string classroomId, UpdateClassroomDto dto, string staffId);
+
         
     }
 }

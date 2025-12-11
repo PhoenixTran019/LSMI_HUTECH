@@ -250,6 +250,67 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             };
         }
 
-      
+        //==========SERVICE TO UPDATE CLASSROOM INFORMATION==========
+        public async Task<bool> UpdateClassroomAsync(string classroomId, UpdateClassroomDto dto, string staffId)
+        {
+            var classroom = await _context.Classrooms
+                .AsTracking()
+                .FirstOrDefaultAsync(c => c.ClassroomId == classroomId);
+
+            if (classroom == null)
+                return false;
+
+            //===Check day 14 day to block 
+            var dayDiff = (DateTime.UtcNow - classroom.CreateDate)?.TotalDays ?? 0;
+            bool isLocked = dayDiff > 14;
+
+            //===update ClassName and Description (IF not block)
+            if (!isLocked)
+            {
+                if (!string.IsNullOrWhiteSpace(dto.ClassName))
+                    classroom.ClassName = dto.ClassName.Trim();
+
+                if (dto.Description != null)
+                    classroom.Description = dto.Description.Trim();
+            }
+
+            //==Update Status
+            if (!string.IsNullOrWhiteSpace(dto.ClassStatus))
+            {
+                classroom.ClassStatus = dto.ClassStatus.Trim();
+            }
+
+            //===Write Activiti Log
+            try
+            {
+                var departId = await _context.StaffDeparts
+                    .Where(s => s.StaffId == staffId)
+                    .Select(s => s.DepartId)
+                    .FirstOrDefaultAsync();
+
+                var log = new ActivityLog
+                {
+                    LogId = Uuidv7Generator.NewUuid7().ToString(),
+                    StaffId = staffId,
+                    DepartId = await _context.StaffDeparts
+                        .Where(x => x.StaffId == staffId)
+                        .Select(x => x.DepartId)
+                        .FirstOrDefaultAsync(),
+                    Action = "Update Classrooms",
+                    TargetTable = "Classrooms",
+                    TargetId = classroom.ClassroomId,
+                    TargetName = classroom.ClassName,
+                    Timestap = DateTime.UtcNow
+                };
+                await _context.ActivityLogs.AddAsync(log);
+            }catch (Exception ex)
+            {
+                
+            }
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+
     }
 }

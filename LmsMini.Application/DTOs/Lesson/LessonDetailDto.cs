@@ -8,6 +8,7 @@ namespace LmsMini.Application.DTOs.Lesson
 {
     public class LessonDetailDto
     {
+        public string? ClassroomID { get; set; }
         public string? LessonId { get; set; }
         public string? Title { get; set; }
         public string? Content { get; set; }

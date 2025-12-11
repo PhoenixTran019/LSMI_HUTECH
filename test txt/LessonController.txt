@@ -1,4 +1,4 @@
-﻿using LmsMini.Application.DTOs.ClassAssignment;
+using LmsMini.Application.DTOs.ClassAssignment;
 using LmsMini.Application.DTOs.Lesson;
 using LmsMini.Application.Interfaces;
 using LmsMini.Domain.Models;
@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace LmsMini.Api.Controllers
 {
     [ApiController]
-    [Route("api/Classroom/{classroomId}/Lessons")]
+    [Route("api/[controller]")]
     public class LessonController : Controller
     {
         private readonly ILessonService _lessonService;
@@ -20,10 +20,10 @@ namespace LmsMini.Api.Controllers
         }
 
 
-        //==========Create Lesson with file uploads============
+        //Create Lesson with file uploads
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpPost("create-lesson")]
-        public async Task<IActionResult> CreateLesson([FromForm] CreateLessonWithFilesDto dto, string staffId, string classroomId)
+        public async Task<IActionResult> CreateLesson([FromForm] CreateLessonWithFilesDto dto, string staffId)
         {
             try
             {
@@ -31,8 +31,6 @@ namespace LmsMini.Api.Controllers
                 staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(staffId))
                     return Unauthorized("Cannot identify staff from token.");
-
-                dto.ClassrooomID = classroomId;
 
                 // Basic validation
                 if (string.IsNullOrWhiteSpace(dto.LessonTitle))
@@ -58,19 +56,16 @@ namespace LmsMini.Api.Controllers
 
        
 
-        //==========Get lesson detail==========
+        // Get lesson detail
         [Authorize (Roles = "Staff,Lecturer,Admin")]
         [HttpGet("{lessonId}/detail")]
-        public async Task<IActionResult> GetLessonDetail(string classroomId,string lessonId)
+        public async Task<IActionResult> GetLessonDetail(string lessonId)
         {
-            var detail = await _lessonService.GetLessonDetailAsync(classroomId, lessonId);
+            var detail = await _lessonService.GetLessonDetailAsync(lessonId);
 
             if (detail == null) 
                 return NotFound("Doesn't find the lesson!");
-
-            if (detail.ClassroomID != classroomId)
-                return Forbid("Lesson does not belong to this classroom");
-
+            
             return Ok(detail);
         }
 
@@ -82,8 +77,8 @@ namespace LmsMini.Api.Controllers
         ///RemoveFileName: List of original names (FileName) to delete.
         ///</summary>
         [Authorize(Roles = "Staff,Lecturer,Admin")]
-        [HttpPut("{lessonId}/Update-Lesson")]
-        public async Task<IActionResult> UpdateLesson(string lessonId, string classroomId, [FromForm] UpdateLessonDto dto)
+        [HttpPut("{id}-updateLesson")]
+        public async Task<IActionResult> UpdateLesson([FromRoute] string id, [FromForm] UpdateLessonDto dto)
         {
             //Take StaffID form claim
             var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -96,7 +91,7 @@ namespace LmsMini.Api.Controllers
             if(string.IsNullOrEmpty(webRootPath))
                 return StatusCode(500, "Cann't determine web root path");
 
-            var ok = await _lessonService.UpdateLessonAsync(classroomId, lessonId, dto, staffId, webRootPath);
+            var ok = await _lessonService.UpdateLessonAsync(id, dto, staffId, webRootPath);
 
             if (!ok)
             {
@@ -109,8 +104,8 @@ namespace LmsMini.Api.Controllers
 
         //Controller to delete lesson
         [Authorize(Roles = "Staff,Lecturer,Admin")]
-        [HttpDelete("{lessonId}/Delete-Lesson")]
-        public async Task<IActionResult> DeleteLesson(string classroomId, string lessonId)
+        [HttpDelete("{id}-deleteLesson")]
+        public async Task<IActionResult> DeleteLesson([FromRoute] string id)
         {
             var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
@@ -119,7 +114,7 @@ namespace LmsMini.Api.Controllers
 
             var webRootPath = _env.WebRootPath;
 
-            var deteted = await _lessonService.DeleteLessonAsync(classroomId, lessonId, staffId, webRootPath);
+            var deteted = await _lessonService.DeleteLessonAsync(id, staffId, webRootPath);
             if (!deteted)
             {
                 return NotFound("Lesson not found!");

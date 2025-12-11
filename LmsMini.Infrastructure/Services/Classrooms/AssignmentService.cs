@@ -3,8 +3,11 @@ using LmsMini.Application.DTOs.ClassAssignment;
 using LmsMini.Application.DTOs.StudentClassroom;
 using LmsMini.Application.Interfaces;
 using LmsMini.Domain.Models;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 using Microsoft.Extensions.Logging;
+using Serilog.Parsing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,11 +20,13 @@ namespace LmsMini.Infrastructure.Services.Classrooms
     {
         private readonly LmsDbContext _context;
         private readonly ILogger<AssignmentService> _logger;
+        private readonly IWebHostEnvironment _env;
 
-        public AssignmentService(LmsDbContext context, ILogger<AssignmentService> logger)
+        public AssignmentService(LmsDbContext context, ILogger<AssignmentService> logger, IWebHostEnvironment env)
         {
             _context = context;
             _logger = logger;
+            _env = env;
         }
 
         //==========Service to create a new assignment with file uploads==========
@@ -29,11 +34,8 @@ namespace LmsMini.Infrastructure.Services.Classrooms
         {
             var assignId = Uuidv7Generator.NewUuid7().ToString();
 
-            //Nonmalize the title to avoid issues with file paths
-            var safeClassName = SlugHelper.Sluggify(dto.ClassName);
-            var safeTitle = SlugHelper.Sluggify(dto.Title);
-
-            var folderPath = Path.Combine(webRootPath, "uploads", "Assignments", safeClassName, safeTitle);
+            //Create folder for this assignment
+            var folderPath = Path.Combine(_env.WebRootPath, "uploads", "Assignments", dto.ClassrooomID, assignId);
             Directory.CreateDirectory(folderPath);
 
 
@@ -63,16 +65,14 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
 
                     var originalFileName = Path.GetFileName(file.FileName);
-                    var storageFileName = $"{Uuidv7Generator.NewUuid7()}_{SlugHelper.Sluggify(originalFileName)}";
-                    var fullPath = Path.Combine(folderPath, storageFileName);
+                    var uniquaName = $"{Uuidv7Generator.NewUuid7()}_{originalFileName}";
+                    var fullPath = Path.Combine(folderPath, uniquaName);
 
-                    using (var stream = new FileStream(fullPath, FileMode.Create)) 
-                    
-                    await file.CopyToAsync(stream);
-                    
+                    using (var stream = new FileStream(fullPath, FileMode.Create))
+                        await file.CopyToAsync(stream);
 
-                    var relativePath = "/" + Path.Combine("uploads", "Assignments", safeClassName, safeTitle, storageFileName)
-                        .Replace('\\', '/'); // For URL use forward slashes
+
+                    var relativePath = $"/uploads/Assignments/{dto.ClassrooomID}/{assignId}/{uniquaName}";
 
                     var assignmentFile = new AssignmentFile
                     {
@@ -105,11 +105,11 @@ namespace LmsMini.Infrastructure.Services.Classrooms
         ///Lấy chi tiết bài tập cho giảng viên/giáo viên
         ///Bao gồm thông tin bài tập và các tệp đính kèm
         ///</summary>
-        public async Task<StaffAssignmentDetailDto?> StaffGetAssignmentDetailAysnc(string assigmentId)
+        public async Task<StaffAssignmentDetailDto?> StaffGetAssignmentDetailAysnc(string assigmentId, string classroomId)
         {
             //Load assignment DB
             var assignmentData = await _context.Assignments
-                .Where(a => a.AssignId == assigmentId)
+                .Where(a => a.AssignId == assigmentId && a.ClassroomId == classroomId)
                 .Select(a => new
                 {
                     a.AssignId,
@@ -125,7 +125,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             if (assignmentData == null) return null;
 
             var files = await _context.AssignmentFiles
-                .Where(f => f.AssignId == assigmentId)
+                .Where(f => f.AssignId == assigmentId && f.Assign.ClassroomId == classroomId)
                 .Select(f => new AssigmentFileDto
                 {
                     FileName = f.FileName,
@@ -187,12 +187,12 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
 
         //==========Service to update an existing assignment==========
-        public async Task<bool> UpdateAssignmentAsync(string assignmentId, UpdateAssignmentDto dto, string staffId, string webRootPath)
+        public async Task<bool> UpdateAssignmentAsync(string ClassroomId, string assignmentId, UpdateAssignmentDto dto, string staffId, string webRootPath)
         {
             //Load assignment and File
             var assigment = await _context.Assignments
                 .Include(a => a.AssignmentFiles)
-                .FirstOrDefaultAsync(a => a.AssignId == assignmentId);
+                .FirstOrDefaultAsync(a => a.AssignId == dto.AssignmentID && a.ClassroomId == ClassroomId);
 
             if (assigment == null)
                 return false;
@@ -218,81 +218,58 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 if (!string.IsNullOrWhiteSpace(dto.HomeworkStatus))
                     assigment.HomeworkStatus = dto.HomeworkStatus.Trim();
 
-                //Build safe folder names (based on ClassName and Title)
-                var classDisplay = !string.IsNullOrWhiteSpace(dto.ClassName) ? dto.ClassName : null;
-                var titleDisplay = !string.IsNullOrWhiteSpace(dto.AssigmentName) ? dto.AssigmentName : null;
+                var rootPath = Path.Combine(webRootPath,"uploads", "Assignments", assigment.ClassroomId, assigment.AssignId);
+                Directory.CreateDirectory(rootPath);
 
-                string classroomNameFromDb = null;
-                try
+                var fileId = Uuidv7Generator.NewUuid7().ToString();
+
+                //===Add new file
+                if(dto.NewFiles != null)
                 {
-                    var classroom = await _context.Classrooms.FirstOrDefaultAsync(c => c.ClassroomId == assigment.ClassroomId);
-                    classroomNameFromDb = classroom?.ClassName;
-                }
-                catch { }
-
-                var classForFolder = classDisplay ?? classroomNameFromDb ?? assigment.ClassroomId ?? "unknow_class";
-                var titleForFolder = titleDisplay ?? assigment.Title ?? "unknow_assignment";
-
-                var safeClassName = SlugHelper.Sluggify(classForFolder);
-                var safeTitle = SlugHelper.Sluggify(titleForFolder);
-
-                var folderRel = Path.Combine("uploads", "Assignments", safeClassName, safeTitle);
-                var folderFull = Path.Combine(webRootPath, folderRel);
-
-                Directory.CreateDirectory(folderFull);
-
-                // 3. If rename (old folder != new folder) -> move existing physical files and update file paths
-                // Build old folder path based on current DB values (before changes)
-                var oldClassName = classroomNameFromDb ?? assigment.ClassroomId ?? "unknow_class";
-                var oldTitleName = assigment.Title ?? "unknow_assignment";
-
-                foreach( var file in assigment.AssignmentFiles.ToList())
-                {
-                    try
+                    foreach (var file in dto.NewFiles)
                     {
-                        var storedPath = (file.FilePath ?? "").TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
-                        var currentPhysical =Path.Combine(webRootPath, storedPath);
-
-                        // target file name remains same stored file name (the DB may contain storedFileName)
-                        var storedFileName = Path.GetFileName(currentPhysical);
-                        var newPhysicalPath = Path.Combine(folderFull, storedFileName);
-
-                        //Move if file exists and paths are different
-                        if(File.Exists(currentPhysical) && !string.Equals(currentPhysical, newPhysicalPath, StringComparison.OrdinalIgnoreCase))
+                        try
                         {
-                            //Ensure target directory exists
-                            Directory.CreateDirectory(Path.GetDirectoryName(newPhysicalPath)!);
-                            File.Move(currentPhysical, newPhysicalPath);
+                            var originalName = Path.GetFileName(file.FileName);
+                            var uniqueName = $"{fileId}_{originalName}";
+                            var filePath = Path.Combine(rootPath, uniqueName);
 
-                            // Update DB FilePath
-                            file.FilePath = "/" + Path.Combine(folderRel, storedFileName).Replace("\\", "/");
-                           
+                            using (var stream = new FileStream(filePath, FileMode.Create))
+                                await file.CopyToAsync(stream);
+
+                            _context.AssignmentFiles.Add(new AssignmentFile
+                            {
+                                FileId = fileId,
+                                AssignId = assigment.AssignId,
+                                FileName = originalName,
+                                FilePath = $"/uploads/Assignments/{assigment.ClassroomId}/{assigment.AssignId}/{uniqueName}",
+                                FileType = file.ContentType
+                            });
+
                         }
-
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Error moving file for assignment {AssignmentId}", assignmentId);
-                        // Continue moving other files
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Error moving file for assignment {AssignmentId}", assignmentId);
+                            // Continue moving other files
+                        }
                     }
                 }
 
                 // 4. Remove requested files
-                if(dto.RemoveFileName != null && dto.RemoveFileName.Any())
+                if(dto.RemoveFileId != null && dto.RemoveFileId.Any())
                 {
                     var removeList = assigment.AssignmentFiles
-                        .Where(f => dto.RemoveFileName.Contains(f.FileName))
+                        .Where(f => dto.RemoveFileId.Contains(f.FileId))
                         .ToList();
 
                     foreach( var f in removeList)
                     {
                         try
                         {
-                            var rel = (f.FilePath ?? "").TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
-                            var physicalPath = Path.Combine(webRootPath, rel);
+                            var fullPath = Path.Combine(_env.WebRootPath, f.FilePath.TrimStart('/'));
 
-                            if (File.Exists(physicalPath))
-                                File.Delete(physicalPath);
+                            if (File.Exists(fullPath))
+                                File.Delete(fullPath);
 
                         }
                         catch (Exception ex)
@@ -301,39 +278,6 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                         }
 
                         _context.AssignmentFiles.Remove(f);
-                    }
-                }
-
-                //Add new files
-                if(dto.NewFiles != null && dto.NewFiles.Any())
-                {
-                    foreach (var file in dto.NewFiles)
-                    {
-                        if (file == null || file.Length == 0) continue;
-
-                        var originalName = Path.GetFileName(file.FileName);
-                        var safeOriginal = SlugHelper.Sluggify(originalName);
-
-                        var fileId = Uuidv7Generator.NewUuid7().ToString();
-                        var storedFileName = $"{fileId}_{safeOriginal}";
-                        var destFull = Path.Combine(folderFull, storedFileName);
-
-                        //Save physical file
-                        using (var stream = new FileStream(destFull, FileMode.Create))
-                            await file.CopyToAsync(stream);
-
-                        var relativePath = "/" + Path.Combine(folderRel, storedFileName).Replace("\\", "/");
-
-                        var assignmentFile = new AssignmentFile
-                        {
-                            FileId = fileId,
-                            AssignId = assignmentId,
-                            FileName = originalName,
-                            FilePath = relativePath,
-                            FileType = file.ContentType,
-                        };
-
-                        await _context.AssignmentFiles.AddAsync(assignmentFile);
                     }
                 }
 
@@ -377,13 +321,13 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
 
         //===========SERVICES FOR DELETE ASSIGNMET==========
-        public async Task<bool> DeleteAssignmentAsync(string assignmentId, string staffId, string webRootPath)
+        public async Task<bool> DeleteAssignmentAsync(string classroomId, string assignmentId, string staffId, string webRootPath)
         {
 
             //Load assignment with files
             var assignment = await _context.Assignments
                 .Include(a => a.AssignmentFiles)
-                .FirstOrDefaultAsync(a => a.AssignId == assignmentId);
+                .FirstOrDefaultAsync(a => a.AssignId == assignmentId && a.ClassroomId == classroomId);
 
             if (assignment == null)
                 return false;
@@ -391,55 +335,17 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             //Transaction -> ensuers no partial delete
             using var tx = await _context.Database.BeginTransactionAsync();
 
-            try
-            {
-                //===Delete physical files ===
-                foreach (var file in assignment.AssignmentFiles)
-                {
-                    try
-                    {
-                        var rePath = (file.FilePath ?? "")
-                            .TrimStart('/', '\\')
-                            .Replace('/', Path.DirectorySeparatorChar);
+            //==Delete Folder
+            var rootPath = Path.Combine(_env.WebRootPath, "uploads", "Assignments", assignment.ClassroomId, assignment.AssignId);
 
-                        var physicalPath = Path.Combine(webRootPath, rePath);
+            if(Directory.Exists(rootPath))
+                Directory.Delete(rootPath, true);
 
-                        if (File.Exists(physicalPath))
-                            File.Delete(physicalPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Error deleting physical file for assignment {AssignmentId}", assignmentId);
-                    }
-                }
-                //===Delete Folder if empty===
-                try
-                {
-                    var className = SlugHelper.Sluggify(
-                        _context.Classrooms
-                        .Where(c => c.ClassroomId == assignment.ClassroomId)
-                        .Select(c => c.ClassName)
-                        .FirstOrDefault()
-                        ?? "Unknow_Class"
-                    );
+            var files = _context.AssignmentFiles.Where(f => f.AssignId == assignmentId).ToList();
 
-                    var folderTitle = SlugHelper.Sluggify(assignment.Title ?? "unknow_assignment");
-
-                    var assignFolder = Path.Combine(webRootPath, "uploads", "Assignments", className, folderTitle);
-
-                    if (Directory.Exists(assignFolder))
-                    {
-                        Directory.Delete(assignFolder, recursive: true);
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error deleting assignment folder for assignment {AssignmentId}", assignmentId);
-                }
                 //===Delete DB records===
-                _context.AssignmentFiles.RemoveRange(assignment.AssignmentFiles);
-                _context.Assignments.Remove(assignment);
+                _context.AssignmentFiles.RemoveRange(files);
+                _context.Assignments.Remove(new Assignment { AssignId = assignmentId});
 
                 //===Log activity===
                 try
@@ -468,14 +374,6 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
                 return true;
 
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting assignment {AssignmentId}", assignmentId);
-                try { await tx.RollbackAsync(); } catch { }
-                throw;
-
-            }
         }
     }
 }

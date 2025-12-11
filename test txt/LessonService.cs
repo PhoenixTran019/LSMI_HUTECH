@@ -13,6 +13,7 @@ using System.Linq;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
 
 namespace LmsMini.Infrastructure.Services
 {
@@ -20,14 +21,18 @@ namespace LmsMini.Infrastructure.Services
     {
         private readonly LmsDbContext _context;
         private readonly ILogger<LessonService> _logger;
+        private readonly IWebHostEnvironment env;
+        private readonly string _webRoot;
 
-        public LessonService(LmsDbContext context, ILogger<LessonService> logger)
+
+        public LessonService(LmsDbContext context, ILogger<LessonService> logger, IWebHostEnvironment env)
         {
             _context = context;
             _logger = logger;
+            _webRoot = env.WebRootPath;
         }
-        
-        //==========Service to create a new lesson with file uploads==========
+
+        //Service to create a new lesson with file uploads
         public async Task<string> CreateLessonWithFilesAsync(CreateLessonWithFilesDto dto, string staffId, string webRootPath)
         {
             //Create Lesson ID.
@@ -40,7 +45,6 @@ namespace LmsMini.Infrastructure.Services
                 throw new ArgumentException("Classroom does not exist.");
             }
 
-            //Clear and safe folder names
             
 
             //Create link folder to save file
@@ -134,16 +138,15 @@ namespace LmsMini.Infrastructure.Services
         
 
         //==========Service to get lesson details including files==========
-        public async Task<LessonDetailDto?> GetLessonDetailAsync(string classroomId, string lessonId)
+        public async Task<LessonDetailDto?> GetLessonDetailAsync(string lessonId)
         {
             var lesson = await _context.Lessons
                 .AsNoTracking()
                 .Include(l => l.LessonFiles)
-                .Where(l => l.LessonId == lessonId && l.ClassroomId == classroomId)
+                .Where(l => l.LessonId == lessonId)
                 .Select(l => new LessonDetailDto
                 {
                     LessonId = l.LessonId,
-                    ClassroomID = l.ClassroomId,
                     Title = l.Title,
                     Content = l.Content,
                     CreatedAt = l.CreateAt,
@@ -162,14 +165,14 @@ namespace LmsMini.Infrastructure.Services
         }
 
         
-        //==========Serxvice to Update Lesson==========
-        public async Task<bool> UpdateLessonAsync(string classroomId, string lessonId, UpdateLessonDto dto, string staffId, string webRootPath)
+
+        public async Task<bool> UpdateLessonAsync(string lessonId, UpdateLessonDto dto, string staffId, string webRootPath)
         {
             //Find Lesson; Include LessonFiles to delete Record
             var lesson = await _context.Lessons
                 .Include(l => l.LessonFiles)
                 .Include(l => l.Classroom) //Take classrom name if needed
-                .FirstOrDefaultAsync(l => l.LessonId == lessonId && l.ClassroomId == classroomId);
+                .FirstOrDefaultAsync(l => l.LessonId == lessonId);
 
             if (lesson == null) return false;
 
@@ -180,12 +183,11 @@ namespace LmsMini.Infrastructure.Services
             if (dto.Content != null)
                 lesson.Content = dto.Content.Trim();
 
-            var folderPath = Path.Combine(webRootPath, "uploads", "Lessons", lesson.ClassroomId, lesson.ClassroomId);
+
 
             //Create new folder if folder doesn't esixt
-            Directory.CreateDirectory(folderPath);
-
-            
+            var folderPath = Path.Combine(webRootPath, "uploads", "Lessons", lesson.ClassroomId)
+            Directory.CreateDirectory(newFolderFull);
 
             //Handle to delete file (base on FileName original by FE sent in RemoveFileName)
             if (dto.RemoveFileName != null && dto.RemoveFileName.Any())
@@ -200,12 +202,11 @@ namespace LmsMini.Infrastructure.Services
                     try
                     {
                         //create physical path from FilePath save in DB
-                        var fileName = Path.GetFileName(fileRec.FilePath);
-
-                        var phisicalPath = Path.Combine(folderPath, fileName);
-                        if (File.Exists(phisicalPath))
+                        var rel = fileRec.FilePath.TrimStart('/', '\\');
+                        var phisical = Path.Combine(webRootPath, rel);
+                        if (System.IO.File.Exists(phisical))
                         {
-                            File.Delete(phisicalPath); //Delete physical file
+                            System.IO.File.Delete(phisical); //Delete physical file
                         }
                         
                     }
@@ -229,33 +230,35 @@ namespace LmsMini.Infrastructure.Services
 
                     //Normalize original file name to display
                     var originalFileName = Path.GetFileName(file.FileName);
+                    var normalizedOriginal = SlugHelper.Sluggify(originalFileName);
 
                     //Stored file name to avoid duplicates
                     var filesId = Uuidv7Generator.NewUuid7().ToString();
-                    var storedFileName = $"{filesId}_{originalFileName}";
+                    var storedFileName = $"{filesId}_{normalizedOriginal}";
 
-                    var fullPath = Path.Combine(folderPath, storedFileName);
+                    var destFullPath = Path.Combine(newFolderFull, storedFileName);
 
                     //Save phisical file
-                    using (var stream = new FileStream(fullPath, FileMode.Create))
+                    using (var stream = new FileStream(destFullPath, FileMode.Create))
                     {
                         await file.CopyToAsync(stream);
                     }
                     //Save record into DB
-                    var relativePath= $"/uploads/Lessons/{lesson.ClassroomId}/{lesson.LessonId}/{storedFileName}";
+                    var relativePathForDb = "/" + Path.Combine(newFolderRel, storedFileName).Replace('\\', '/');
 
                     await _context.LessonFiles.AddAsync (new LessonFile
                     {
                         FilesId = filesId,
                         LessonId = lesson.LessonId,
                         FileName = originalFileName, //Name display to FE
-                        FilePath = relativePath, //Link
+                        FilePath = relativePathForDb, //Link
                         FileType = file.ContentType,
                         UpdateAt = DateTime.UtcNow,
                     });
                     
                 }
             }
+            lesson.CreateAt = DateTime.UtcNow; //Update time
 
             //5. Write log 
             var staff = await _context.StaffDeparts
@@ -266,10 +269,7 @@ namespace LmsMini.Infrastructure.Services
                 {
                     LogId = Uuidv7Generator.NewUuid7().ToString(),
                     StaffId = staffId,
-                    DepartId = _context.StaffDeparts
-                        .Where(s => s.StaffId == staffId)
-                        .Select(s => s.DepartId)
-                        .FirstOrDefault(),
+                    DepartId = staff.DepartId,
                     Action = "Update Lesson",
                     TargetTable = "Lessons",
                     TargetId = lesson.LessonId,
@@ -289,17 +289,19 @@ namespace LmsMini.Infrastructure.Services
             return true;
         }
 
-        //==========SERVICE TO DELETE LESSON AND DELETE FILE WHEN LESSON HAS BEEN DELETE==========
-        public async Task<bool> DeleteLessonAsync(string classroomId,string lessonId, string staffId, string webRootPath)
+        public async Task<bool> DeleteLessonAsync(string lessonId, string staffId, string webRootPath)
         {
             var lesson = await _context.Lessons
                 .Include(l => l.LessonFiles)
-                .FirstOrDefaultAsync(l => l.LessonId == lessonId && l.ClassroomId == classroomId);
+                .FirstOrDefaultAsync(l => l.LessonId == lessonId);
 
             if (lesson == null) return false;
 
+            var safeClassName = SlugHelper.Sluggify(lesson.Classroom?.ClassName ?? "NoClass");
+            var safeLessonTitle = SlugHelper.Sluggify(lesson.Title ?? "NoLesson");
+
             //Full path Folder
-            var lessonFolder = Path.Combine(webRootPath, "uploads", "Lessons", classroomId, lessonId);
+            var lessonFolder = Path.Combine(webRootPath, "uploads", "Lessons", safeClassName, safeLessonTitle);
 
             //Delete physical files
             foreach( var file in lesson.LessonFiles)

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using LmsMini.Application.Interfaces;
@@ -12,12 +13,12 @@ namespace LmsMini.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class StudentController : Controller
+    public class LectoStudentController : Controller
     {
         private readonly IStudentService _studentService;
         private readonly LmsDbContext _context;
 
-        public StudentController(IStudentService studentService, LmsDbContext context)
+        public LectoStudentController(IStudentService studentService, LmsDbContext context)
         {
             _studentService = studentService;
             _context = context;

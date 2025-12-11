@@ -11,6 +11,7 @@ using LmsMini.Infrastructure.Services.Project;
 using LmsMini.Infrastructure.Services.Projects;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -64,6 +65,7 @@ builder.Services.AddDbContext<LmsDbContext>(options =>
 // ======================================================================
 // 3.2 Đăng ký Repository và các DI khác
 // ======================================================================
+builder.Services.AddHttpContextAccessor();
 
 
 // ======================================================================

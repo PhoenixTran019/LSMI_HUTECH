@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace LmsMini.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/{classroomId}/Lessons")]
     public class AssignmentController : Controller
     {
         private readonly IAssigmentService _assigment;
@@ -29,13 +29,13 @@ namespace LmsMini.Api.Controllers
         //Get Assignment Detail for Staff/Lecturer/Admin
         //Include assignment infor, attached files, submissions summary
         [Authorize(Roles = "Staff,Lecturer,Admin")]
-        [HttpGet("staff-assignment-detail/{assignmentId}")]
-        public async Task<IActionResult> GetAssignmentDetail([FromRoute] string assignmentId)
+        [HttpGet("{assignmentId}/staff-assignment-detail")]
+        public async Task<IActionResult> GetAssignmentDetail([FromRoute] string assignmentId, string classroomId)
         {
             if (string.IsNullOrWhiteSpace(assignmentId))
                 return BadRequest("Assignment ID is required.");
-
-            var assignmentDetail = await _assigment.StaffGetAssignmentDetailAysnc(assignmentId);
+            
+            var assignmentDetail = await _assigment.StaffGetAssignmentDetailAysnc(assignmentId, classroomId);
 
             if (assignmentDetail == null)
                 return NotFound("Assignment not found.");
@@ -48,8 +48,10 @@ namespace LmsMini.Api.Controllers
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpPut("update-assignment/{assignmentId}")]
         //Update Assignment
-        public async Task<IActionResult> UpdateAssignment([FromRoute] string assignmentId, [FromForm] UpdateAssignmentDto dto)
+        public async Task<IActionResult> UpdateAssignment(string classroomId,[FromRoute] string assignmentId, [FromForm] UpdateAssignmentDto dto)
         {
+            dto.ClasroomID = classroomId;
+            dto.AssignmentID = assignmentId;
             var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(staffId))
                 return Unauthorized("Cannot identify staff from token.");
@@ -58,7 +60,7 @@ namespace LmsMini.Api.Controllers
             if(string.IsNullOrEmpty(webRootPath))
                 return StatusCode(500, "Web root path is not configured.");
 
-            var ok = await _assigment.UpdateAssignmentAsync(assignmentId, dto, staffId, webRootPath);
+            var ok = await _assigment.UpdateAssignmentAsync(classroomId, assignmentId, dto, staffId, webRootPath);
             if (!ok)
                 return StatusCode(500, "Failed to update assignment.");
 
@@ -68,7 +70,7 @@ namespace LmsMini.Api.Controllers
         //===========DELETE ASSIGNMENT ==============
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpDelete("delete-assignment/{assignmentId}")]
-        public async Task<IActionResult> DeleteAssignment([FromRoute] string assignmentId)
+        public async Task<IActionResult> DeleteAssignment(string classroomId, string assignmentId)
         {
             //StaffId stored in JWT claim
             var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -76,7 +78,7 @@ namespace LmsMini.Api.Controllers
             if (string.IsNullOrEmpty(staffId))
                 return Unauthorized("Cannot identify staff from token.");
 
-            var ok = await _assigment.DeleteAssignmentAsync(assignmentId, staffId, _env.WebRootPath);
+            var ok = await _assigment.DeleteAssignmentAsync(classroomId, assignmentId, staffId, _env.WebRootPath);
 
             if (!ok)
                 return NotFound("Assignment not found or unanble to delete");

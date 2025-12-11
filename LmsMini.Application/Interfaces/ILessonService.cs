@@ -13,11 +13,11 @@ namespace LmsMini.Application.Interfaces
     {
         Task<string> CreateLessonWithFilesAsync(CreateLessonWithFilesDto dto, string staffId, string webRootPath);
 
-        Task<LessonDetailDto?> GetLessonDetailAsync(string lessonId);
+        Task<LessonDetailDto?> GetLessonDetailAsync(string classroomId, string lessonId);
 
-        Task<bool> UpdateLessonAsync(string lessonId, UpdateLessonDto dto, string staffId, string webRootPath);
+        Task<bool> UpdateLessonAsync(string classroomId, string lessonId, UpdateLessonDto dto, string staffId, string webRootPath);
 
-        Task<bool> DeleteLessonAsync(string lessonId, string staffId, string webRootPath);
+        Task<bool> DeleteLessonAsync(string classroomId, string lessonId, string staffId, string webRootPath);
 
 
         

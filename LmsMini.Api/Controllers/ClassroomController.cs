@@ -11,7 +11,7 @@ using System.Security.Claims;
 namespace LmsMini.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/Classroom")]
     public class ClassroomController : Controller
     {
         private readonly IClassroomService _classroomService;
@@ -107,7 +107,7 @@ namespace LmsMini.Api.Controllers
 
         //==========Get view  lesson and assignment in classroom==========
         [Authorize]
-        [HttpGet("{classroomId}/Classroom-Dashboard")]
+        [HttpGet("{classroomId}/Classroom-Dashboard-Detail")]
         public async Task<IActionResult> GetClassroomOverview (string classroomId)
         {
             var result = await _classroomService.GetOverviewAsync(classroomId);
