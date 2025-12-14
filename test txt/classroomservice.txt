@@ -1,4 +1,4 @@
-﻿using LmsMini.Application.Common.Helpers;
+using LmsMini.Application.Common.Helpers;
 using LmsMini.Application.DTOs.Classroom;
 using LmsMini.Application.DTOs.Lesson;
 using LmsMini.Application.Interfaces;
@@ -24,7 +24,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             _context = context;
         }
 
-        //==========Service to create a new classroom==========
+        //Service to create a new classroom
         public async Task<bool> CreateClassroomAsync (CreateClassroomDto dto, string staffId)
         {
             //Check if Classroom with the same name already exists
@@ -119,7 +119,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             return true;
         }
 
-        //==========Service to get all classrooms==========
+        //Service to get all classrooms
         public async Task<List<ClassroomCardViewModel>> GetDashboardClassroomsAsync(ClassroomFilterDto filter, List<string>? allowedDepartIds)
         {
             //Start the query from the Classrooms table and include related tables
@@ -170,7 +170,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             return result;
         }
 
-        //==========Service to add member to classroom==========
+        //Service to add member to classroom
         public async Task<bool> AddMemberToClassroomAsync (string classroomId, string userId, string role)
         {
             var classroom = await _context.Classrooms.FindAsync(classroomId);
@@ -197,7 +197,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             return true;
         }
 
-        //==========Service to update role==========
+        //Service to update role
         public async Task<bool> UpdateMemberRoleAsync (string classroomId, string userId, string newRole)
         {
             bool isLecturer = newRole == "Teacher";
@@ -311,143 +311,6 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             return true;
         }
 
-        //==========SERVICE TO DELETE CLASSROOM==========
-        public async Task<bool> DeleteClassroomAsync(string classroomId, string staffId, string webRootPath)
-        {
-            //===Load classroom
-            var classroom = await _context.Classrooms
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.ClassroomId == classroomId);
-
-            if (classroom == null) 
-                return false;
-
-            using var tx = await _context.Database.BeginTransactionAsync();
-
-            try
-            {
-                //Delete all lesson + files
-                var lessons = await _context.Lessons
-                    .Include(l => l.LessonFiles)
-                    .Where(l => l.ClassroomId == classroomId)
-                    .ToListAsync();
-
-                foreach (var lesson in lessons)
-                {
-                    var lessonFolder = Path.Combine(webRootPath, "uploads", "Lessons", classroomId, lesson.LessonId);
-
-                    //delete lesson file
-                    foreach (var file in lesson.LessonFiles)
-                    {
-                        try
-                        {
-                            var fileName = Path.GetFileName(file.FilePath);
-                            var filePath = Path.Combine(lessonFolder, fileName);
-
-                            if (File.Exists(filePath))
-                                File.Delete(filePath);
-                        }
-                        catch { }
-                    }
-
-                    //delete assignment folder
-                    try
-                    {
-                        if (Directory.Exists(lessonFolder))
-                            Directory.Delete(lessonFolder, true);
-                    }
-                    catch { }
-                    _context.LessonFiles.RemoveRange(lesson.LessonFiles);
-                    _context.Lessons.Remove(lesson);
-                }
-
-                //Delete Assignment + File + Submit
-                var assignments = await _context.Assignments
-                    .Include(a => a.AssignmentFiles)
-                    .Where(a => a.ClassroomId == classroomId)
-                    .ToListAsync();
-                
-                foreach(var assign in assignments)
-                {
-                    var assignFolder = Path.Combine(webRootPath, "uploads", "Assignments", classroomId, assign.AssignId);
-
-                    //Delete Assignment Files
-                    foreach(var file in assign.AssignmentFiles)
-                    {
-                        try
-                        {
-                            var fileName = Path.GetFileName(file.FilePath);
-                            var filePath = Path.Combine(assignFolder, fileName);
-
-                            if (File.Exists(filePath))
-                                File.Delete(filePath);
-                        }
-                        catch { }
-                    }
-
-                    //Delete assginment folder
-                    try
-                    {
-                        if (Directory.Exists(assignFolder))
-                            Directory.Delete(assignFolder, true);
-                    }
-                    catch { }
-
-                    //Delete submission
-                    var submissions = await _context.Submissions
-                        .Where(s => s.AssignId == assign.AssignId)
-                        .ToListAsync();
-
-                    _context.Submissions.RemoveRange(submissions);
-
-                    //Delete db record
-                    _context.AssignmentFiles.RemoveRange(assign.AssignmentFiles);
-                    _context.Assignments.Remove(assign);
-                }
-
-                //Delete members
-                var members = await _context.ClassroomMembers
-                    .Where(m => m.ClassroomId == classroomId)
-                    .ToListAsync();
-                _context.ClassroomMembers.RemoveRange(members);
-
-                //DELETE CLASSROOM
-                _context.Classrooms.Remove(classroom);
-
-                //WRITE log
-                try
-                {
-                    await _context.ActivityLogs.AddAsync(new ActivityLog
-                    {
-                        LogId = Uuidv7Generator.NewUuid7().ToString(),
-                        StaffId = staffId,
-                        DepartId = _context.StaffDeparts
-                            .Where (s => s.StaffId == staffId)
-                            .Select(s => s.DepartId)
-                            .FirstOrDefault(),
-                        Action = "Delete Classroom",
-                        TargetId = classroomId,
-                        TargetTable = "Classrooms",
-                        TargetName = classroom.ClassName,
-                        Timestap = DateTime.UtcNow
-                    });
-                }
-                catch { }
-
-                //Save chage
-                await _context.SaveChangesAsync();
-                await tx.CommitAsync();
-
-                return true;
-
-            }
-            catch
-            {
-                await tx.RollbackAsync();
-                throw;
-            }
-
-        }
 
     }
 }

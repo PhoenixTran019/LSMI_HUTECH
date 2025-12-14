@@ -8,7 +8,8 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
       "dotnetRunMessages": true,
-      "applicationUrl": "http://localhost:5081"
+      "applicationUrl": "http://localhost:5081",
+      "jsWebView2Debugging": false
     },
     "https": {
       "commandName": "Project",
@@ -19,7 +20,8 @@
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7112;http://localhost:5081",
-      "remoteDebugEnabled": false
+      "remoteDebugEnabled": false,
+      "jsWebView2Debugging": false
     },
     "IIS Express": {
       "commandName": "IISExpress",

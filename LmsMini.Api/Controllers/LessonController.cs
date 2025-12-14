@@ -59,7 +59,7 @@ namespace LmsMini.Api.Controllers
        
 
         //==========Get lesson detail==========
-        [Authorize (Roles = "Staff,Lecturer,Admin")]
+        [Authorize]
         [HttpGet("{lessonId}/detail")]
         public async Task<IActionResult> GetLessonDetail(string classroomId,string lessonId)
         {

@@ -16,11 +16,13 @@ namespace LmsMini.Api.Controllers
     {
         private readonly IClassroomService _classroomService;
         private readonly LmsDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public ClassroomController(IClassroomService classroomService, LmsDbContext context)
+        public ClassroomController(IClassroomService classroomService, LmsDbContext context, IWebHostEnvironment env)
         {
             _classroomService = classroomService;
             _context = context;
+            _env = env;
         }
 
         //==========Create Classroom=========
@@ -71,7 +73,7 @@ namespace LmsMini.Api.Controllers
 
         //Add member by hand
         [Authorize(Roles = "Staff,Lecturer,Admin")]
-        [HttpPost("classroom/{classroomId}/add-member")]
+        [HttpPost("{classroomId}/add-member")]
         public async Task<IActionResult> AddMember(string classroomId, [FromBody]AddMemberDto dto)
         {
             var currentUserId = User.FindFirst (ClaimTypes.NameIdentifier)?.Value;
@@ -89,7 +91,7 @@ namespace LmsMini.Api.Controllers
 
         //chage roll in class
         [Authorize(Roles = "Staff,Lecturer,Admin")]
-        [HttpPut("classroom/{classroomId}/update-role")]
+        [HttpPut("{classroomId}/update-role")]
         public async Task<IActionResult> UpdateRole (string classroomId, [FromBody] UpdateRoleDto dto)
         {
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -118,5 +120,38 @@ namespace LmsMini.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles ="Staff, Lecturer, Admin")]
+        [HttpPut("{classroomId}/Update-Classroom")]
+        public async Task<IActionResult> UpdateClassroom(string classroomId, [FromBody] UpdateClassroomDto dto)
+        {
+            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(staffId))
+                return Unauthorized("Cannot identify staff from token.");
+
+            var ok = await _classroomService.UpdateClassroomAsync(classroomId, dto, staffId);
+
+            if (!ok)
+                return NotFound("Classroom not found or failed to update");
+
+            return NoContent();
+        }
+
+        [Authorize(Roles = ("Admin, Staff"))]
+        [HttpDelete("{classroomId}/Delete-Classroom")]
+        public async Task<IActionResult> DeleteClassroom (string classroomId)
+        {
+            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(staffId))
+                return Unauthorized("Cannot identify staff form token");
+
+            var webRootPath = _env.WebRootPath;
+
+            var ok = await _classroomService.DeleteClassroomAsync(classroomId, staffId, webRootPath);
+
+            if (!ok)
+                return NotFound("Class not found or cannot delete");
+
+            return NoContent();
+        }
     }
 }
