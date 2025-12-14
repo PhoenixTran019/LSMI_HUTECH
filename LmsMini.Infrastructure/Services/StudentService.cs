@@ -27,13 +27,25 @@ namespace LmsMini.Infrastructure.Services
 
             //Lấy ID thực từ dropdown "ID | Name"
             var departEntity = await _context.Departments.FirstOrDefaultAsync(d => d.DepartId == dto.DepartID);
-            if (departEntity == null) throw new ArgumentException("Invalid Depart name");
+            if (departEntity == null) 
+            {
+                Console.WriteLine("Invalid DepartID: " + dto.DepartID);
+                return false;
+            }
 
             var classEntity = await _context.Classes.FirstOrDefaultAsync(c => c.ClassId == dto.ClassID);
-            if (classEntity == null) throw new ArgumentException("Invalid Classes name");
+            if (classEntity == null)
+            {
+                Console.WriteLine("Invalid ClassID: " + dto.ClassID);
+                return false;
+            }
 
             var majorEntity = await _context.Majors.FirstOrDefaultAsync(m => m.MajorId == dto.StuMajor);
-            if (majorEntity == null) throw new ArgumentException("Invalid Major Name");
+            if (majorEntity == null)
+            {
+                Console.WriteLine("Invalid MajorID: " + dto.StuMajor);
+                return false;
+            }
 
             // Normalize to not differentiate between upper/lower case
             var normalizedStudentID = dto.StudentID.Trim().ToLower();
@@ -41,14 +53,20 @@ namespace LmsMini.Infrastructure.Services
             //Check if StudentID or username already exists
             bool exists = await _context.Students.AnyAsync(s => s.StudentId.ToLower() == normalizedStudentID) ||
                           await _context.Users.AnyAsync(u => u.Username.ToLower() == normalizedStudentID);
-            
-            if (exists)
-                return false;
 
+            if (exists)
+            {
+                Console.WriteLine("StudentID already exists: " + normalizedStudentID);
+                return false;
+            }
             //Role Student
             var role = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Student");
             if (role == null)
+            {
+                Console.WriteLine("Role Student not found");
                 return false;
+            }
+                
 
             //Create UUID v7 for UserId
             var userId = Uuidv7Generator.NewUuid7().ToString();

@@ -51,23 +51,15 @@ namespace LmsMini.Api.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            List<string>? allowedDepartIds = null;
-
-            if(role != "Admin")
+            if (string.IsNullOrEmpty(userId))
             {
-                //Get StaffId from UserId
-                var staffId = await _context.DepartmentStaffs
-                    .Where(s => s.UserId == userId)
-                    .Select(s => s.StaffId)
-                    .FirstOrDefaultAsync();
-
-                //Take list Key of departments that staff manage
-                allowedDepartIds = await _context.StaffDeparts
-                    .Where(sd => sd.StaffId == staffId)
-                    .Select(sd => sd.DepartId)
-                    .ToListAsync();
+                return Unauthorized("Cannot identify user from token.");
             }
-            var result = await _classroomService.GetDashboardClassroomsAsync(filter, allowedDepartIds);
+
+            // Loại bỏ logic lọc theo Department ở Controller
+            // Thay vào đó, truyền role và userId để Service tự quyết định cách lọc
+            var result = await _classroomService.GetDashboardClassroomsAsync(filter, role, userId);
+
             return Ok(result);
         }
 

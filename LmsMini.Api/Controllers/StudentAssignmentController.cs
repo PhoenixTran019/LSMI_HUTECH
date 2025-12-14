@@ -1,6 +1,7 @@
 ﻿using LmsMini.Application.Common.Helpers;
 using LmsMini.Domain.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -9,6 +10,7 @@ namespace LmsMini.Api.Controllers
 {
     [ApiController]
     [Route("api/Classroom/{classroomId}/Student/Assignments")]
+    [Authorize(Roles = "Student")]
     public class StudentAssignmentController : ControllerBase
     {
         private readonly LmsDbContext _context;
@@ -42,10 +44,9 @@ namespace LmsMini.Api.Controllers
 
         private async Task<IActionResult?> EnsureStudentIsMember(string classroomId, string studentId)
         {
+            // NOTE: bỏ điều kiện RoleInClass để tránh data lệch làm Student bị chặn
             var isMember = await _context.ClassroomMembers
-                .AnyAsync(m => m.ClassroomId == classroomId
-                            && m.StudentId == studentId
-                            && (m.RoleInClass == null || m.RoleInClass == "Student"));
+                .AnyAsync(m => m.ClassroomId == classroomId && m.StudentId == studentId);
 
             if (!isMember)
                 return Forbid("You are not a member of this classroom.");
@@ -66,9 +67,8 @@ namespace LmsMini.Api.Controllers
         }
 
         // =========================
-        // 1) Student list assignments (kèm trạng thái đã nộp/chưa)
+        // 1) Student list assignments
         // =========================
-        [Authorize(Roles = "Student")]
         [HttpGet]
         public async Task<IActionResult> GetAssignments(string classroomId)
         {
@@ -95,23 +95,48 @@ namespace LmsMini.Api.Controllers
                 .OrderByDescending(a => a.CreateAt)
                 .ToListAsync();
 
-            var assignIds = assignments.Select(a => a.AssignId).ToList();
+            var assignIds = assignments
+                .Where(a => !string.IsNullOrWhiteSpace(a.AssignId))
+                .Select(a => a.AssignId!)
+                .ToList();
 
             var latestSubmissions = await _context.Submissions
                 .AsNoTracking()
-                .Where(s => s.StudentId == studentId && s.AssignId != null && assignIds.Contains(s.AssignId))
+                .Where(s => s.StudentId == studentId
+                            && s.AssignId != null
+                            && assignIds.Contains(s.AssignId))
                 .GroupBy(s => s.AssignId!)
                 .Select(g => g.OrderByDescending(x => x.SubmitAt).FirstOrDefault())
-                .ToDictionaryAsync(x => x!.AssignId!, x => x);
+                .Where(x => x != null && x.AssignId != null)
+                .ToDictionaryAsync(x => x!.AssignId!, x => x!);
 
             var result = assignments.Select(a =>
             {
+                if (string.IsNullOrWhiteSpace(a.AssignId))
+                {
+                    return new
+                    {
+                        a.AssignId,
+                        a.Title,
+                        a.Description,
+                        a.Deadline,
+                        a.DeadlineStatus,
+                        a.HomeworkStatus,
+                        a.CreateAt,
+                        a.FileCount,
+                        HasSubmitted = false,
+                        SubmittedAt = (DateTime?)null,
+                        IsLate = false,
+                        SubmitType = (string?)null
+                    };
+                }
+
                 latestSubmissions.TryGetValue(a.AssignId!, out var sub);
                 var submittedAt = sub?.SubmitAt;
 
-                bool isLate = false;
-                if (submittedAt.HasValue && a.Deadline.HasValue)
-                    isLate = submittedAt.Value > a.Deadline.Value;
+                var isLate = submittedAt.HasValue && a.Deadline.HasValue
+                    ? submittedAt.Value > a.Deadline.Value
+                    : false;
 
                 return new
                 {
@@ -134,9 +159,8 @@ namespace LmsMini.Api.Controllers
         }
 
         // =========================
-        // 2) Student assignment detail (kèm file đính kèm + latest submission)
+        // 2) Student assignment detail (Description + files + latest submission)
         // =========================
-        [Authorize(Roles = "Student")]
         [HttpGet("{assignmentId}/detail")]
         public async Task<IActionResult> GetAssignmentDetail(string classroomId, string assignmentId)
         {
@@ -182,7 +206,7 @@ namespace LmsMini.Api.Controllers
                     latestSubmission.SubmitAt,
                     latestSubmission.SubmitType,
                     latestSubmission.FeedBack,
-                    latestSubmission.Grade,
+                    latestSubmission.Grade, // nếu Grade entity là double? thì OK ở anonymous object
                     Files = latestSubmission.SubmitFiles.Select(sf => new
                     {
                         sf.FileId,
@@ -198,7 +222,6 @@ namespace LmsMini.Api.Controllers
         // =========================
         // 3) Download assignment attached file (Student)
         // =========================
-        [Authorize(Roles = "Student")]
         [HttpGet("files/{fileId}/download")]
         public async Task<IActionResult> DownloadAssignmentFile(string classroomId, string fileId)
         {
@@ -241,12 +264,8 @@ namespace LmsMini.Api.Controllers
         // =========================
         // 4) Student submit assignment (multipart/form-data)
         // =========================
-        // form-data:
-        // - Files: (multiple files)
-        // - SubmitType: (optional) "OnTime" / "Late" (nếu bỏ trống -> BE tự tính theo Deadline)
-        [Authorize(Roles = "Student")]
         [HttpPost("{assignmentId}/submit")]
-        [RequestSizeLimit(200_000_000)] // 200MB (bạn có thể đổi)
+        [RequestSizeLimit(200_000_000)]
         public async Task<IActionResult> SubmitAssignment(
             string classroomId,
             string assignmentId,
@@ -270,21 +289,12 @@ namespace LmsMini.Api.Controllers
             var submitId = Uuidv7Generator.NewUuid7().ToString();
             var now = DateTime.UtcNow;
 
-            // Nếu FE không gửi SubmitType thì BE tự tính
             string submitType;
             if (!string.IsNullOrWhiteSpace(request.SubmitType))
-            {
                 submitType = request.SubmitType.Trim();
-            }
             else
-            {
-                if (assignment.Deadline.HasValue && now > assignment.Deadline.Value)
-                    submitType = "Late";
-                else
-                    submitType = "OnTime";
-            }
+                submitType = (assignment.Deadline.HasValue && now > assignment.Deadline.Value) ? "Late" : "OnTime";
 
-            // Tạo Submission record
             var submission = new Submission
             {
                 SubmitId = submitId,
@@ -298,7 +308,6 @@ namespace LmsMini.Api.Controllers
 
             await _context.Submissions.AddAsync(submission);
 
-            // Lưu file vào wwwroot/uploads/Submissions/...
             var webRoot = _env.WebRootPath;
             if (string.IsNullOrWhiteSpace(webRoot))
                 return StatusCode(500, "WebRootPath is not configured.");
@@ -351,7 +360,6 @@ namespace LmsMini.Api.Controllers
         // =========================
         // 5) Student download their submitted file
         // =========================
-        [Authorize(Roles = "Student")]
         [HttpGet("submission-files/{submitFileId}/download")]
         public async Task<IActionResult> DownloadMySubmissionFile(string classroomId, string submitFileId)
         {
@@ -395,12 +403,12 @@ namespace LmsMini.Api.Controllers
         }
     }
 
-    // =========================
-    // Request model for multipart/form-data
-    // =========================
     public class StudentSubmitAssignmentRequest
     {
-        public string? SubmitType { get; set; } // optional: "OnTime" / "Late"
+        public string? SubmitType { get; set; }
+
+        // FE form-data key phải là "Files"
+        [FromForm(Name = "Files")]
         public List<IFormFile> Files { get; set; } = new();
     }
 }

@@ -27,12 +27,10 @@ namespace LmsMini.Api.Controllers
         [HttpGet("{filesId}/download")]
         public async Task<IActionResult> DownloadLessonFile(string classroomId, string filesId)
         {
-            // 1) Lấy userId từ token (sub -> thường map về NameIdentifier)
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrWhiteSpace(userId))
                 return Unauthorized("Cannot identify user from token.");
 
-            // 2) Lấy record file + verify file thuộc lesson thuộc classroomId
             var fileRec = await _context.LessonFiles
                 .AsNoTracking()
                 .Include(f => f.Lesson)
@@ -44,8 +42,7 @@ namespace LmsMini.Api.Controllers
             if (fileRec == null)
                 return NotFound("Lesson file not found.");
 
-            // 3) Nếu là Student thì check membership lớp
-            //    (Student token có userId là UUID -> map qua Student.UserId để lấy StudentId)
+            // Student thì phải là member lớp
             if (User.IsInRole("Student"))
             {
                 var studentId = await _context.Students
@@ -63,7 +60,6 @@ namespace LmsMini.Api.Controllers
                     return Forbid("You are not a member of this classroom.");
             }
 
-            // 4) Build physical path từ FilePath trong DB
             if (string.IsNullOrWhiteSpace(fileRec.FilePath))
                 return StatusCode(500, "FilePath is empty in database.");
 
@@ -71,7 +67,6 @@ namespace LmsMini.Api.Controllers
             if (string.IsNullOrWhiteSpace(webRoot))
                 return StatusCode(500, "WebRootPath is not configured.");
 
-            // FilePath DB dạng: /uploads/Lessons/{classroomId}/{lessonId}/{fileName}
             var relative = fileRec.FilePath.TrimStart('/')
                 .Replace('/', Path.DirectorySeparatorChar);
 
@@ -80,7 +75,6 @@ namespace LmsMini.Api.Controllers
             if (!System.IO.File.Exists(physicalPath))
                 return NotFound("Physical file not found on server.");
 
-            // 5) Stream file
             var contentType = string.IsNullOrWhiteSpace(fileRec.FileType)
                 ? "application/octet-stream"
                 : fileRec.FileType;

@@ -30,23 +30,41 @@ namespace LmsMini.Api.Controllers
         [HttpPost("create-student")]
         public async Task<IActionResult> CreateStudent([FromBody] CreateStudentDto dto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            //Take StaffId from logged in user Token
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized("User ID not found in token.");
             }
 
-            var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == userId);
+            var staff = await _context.DepartmentStaffs
+                .FirstOrDefaultAsync(s => s.UserId == userId);
 
-            //Call Service to create Student and Account
-            var success = await _studentService.CreateStudentWithAccountAsync(dto, staff.StaffId);
+            if (staff == null)
+            {
+                return BadRequest("Staff has not been assigned to any department.");
+            }
+
+            var success = await _studentService
+                .CreateStudentWithAccountAsync(dto, staff.StaffId);
+
             if (!success)
             {
-                return BadRequest("Student ID already exists or Student role has not been configured.");
+                return BadRequest(new
+                {
+                    message = "Create student failed",
+                    reason = "Invalid dropdown data or duplicated StudentID"
+                });
             }
-            return Ok("Create Student and Student Account Success!");
+
+            return Ok(new
+            {
+                message = "Create Student and Student Account Success!"
+            });
         }
 
         //Take Class list for Dropdown in Create Student Form

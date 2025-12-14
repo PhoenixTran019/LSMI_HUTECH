@@ -120,7 +120,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
         }
 
         //==========Service to get all classrooms==========
-        public async Task<List<ClassroomCardViewModel>> GetDashboardClassroomsAsync(ClassroomFilterDto filter, List<string>? allowedDepartIds)
+        public async Task<List<ClassroomCardViewModel>> GetDashboardClassroomsAsync(ClassroomFilterDto filter, string role, string userId)
         {
             //Start the query from the Classrooms table and include related tables
             var query = _context.Classrooms
@@ -129,27 +129,73 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 .Include(c => c.CreateByNavigation)
                 .AsQueryable();
 
-            //Search by class name
-            if(!string.IsNullOrWhiteSpace(filter.Keyword))
+            //Search by filters (giữ nguyên)
+            if (!string.IsNullOrWhiteSpace(filter.Keyword))
                 query = query.Where(c => c.ClassName.Contains(filter.Keyword));
 
-            //Search by subject
-            if(!string.IsNullOrWhiteSpace(filter.SubjectId))
+            if (!string.IsNullOrWhiteSpace(filter.SubjectId))
                 query = query.Where(c => c.ClassSub == filter.SubjectId);
 
-            //Search by main class
-            if(!string.IsNullOrWhiteSpace(filter.MainClassId))
+            if (!string.IsNullOrWhiteSpace(filter.MainClassId))
                 query = query.Where(c => c.MainClass == filter.MainClassId);
 
-            //Search by course
-            if(!string.IsNullOrWhiteSpace(filter.Course))
+            if (!string.IsNullOrWhiteSpace(filter.Course))
                 query = query.Where(c => c.MainClassNavigation.Course == filter.Course);
 
-            //If not admin, only get classes that on the staff manage
-            if (allowedDepartIds?.Any() == true)
-                query = query.Where(c => allowedDepartIds.Contains(c.ClassSubNavigation.DepartId));
+            // =========================================================
+            // LỌC DỮ LIỆU DỰA TRÊN VAI TRÒ (ROLE)
+            // =========================================================
 
-            //Pagination and mapping to ViewModel
+            if (role != "Admin")
+            {
+                // Lấy StaffId/LecturerId từ UserId (vì Lecturer thường là Staff)
+                var staffId = await _context.DepartmentStaffs
+                    .Where(s => s.UserId == userId)
+                    .Select(s => s.StaffId)
+                    .FirstOrDefaultAsync();
+
+                if (role == "Lecturer")
+                {
+                    // Nếu là Lecturer, chỉ được thấy các lớp họ là thành viên (LecturerId)
+                    if (!string.IsNullOrEmpty(staffId))
+                    {
+                        // Lấy danh sách ClassroomId mà Lecturer này là thành viên/người tạo
+                        var memberClassroomIds = await _context.ClassroomMembers
+                            .Where(m => m.LecturerId == staffId)
+                            .Select(m => m.ClassroomId)
+                            .Distinct()
+                            .ToListAsync();
+
+                        // Áp dụng bộ lọc
+                        query = query.Where(c => memberClassroomIds.Contains(c.ClassroomId));
+                    }
+                    else
+                    {
+                        // Nếu không tìm thấy StaffId/LecturerId, không có lớp nào được trả về.
+                        query = query.Where(c => false);
+                    }
+                }
+                else if (role == "Staff")
+                {
+                    // Nếu là Staff (quản lý phòng ban), dùng logic lọc cũ theo DepartId
+                    if (!string.IsNullOrEmpty(staffId))
+                    {
+                        var allowedDepartIds = await _context.StaffDeparts
+                            .Where(sd => sd.StaffId == staffId)
+                            .Select(sd => sd.DepartId)
+                            .ToListAsync();
+
+                        query = query.Where(c => allowedDepartIds.Contains(c.ClassSubNavigation.DepartId));
+                    }
+                    else
+                    {
+                        query = query.Where(c => false);
+                    }
+                }
+            }
+            // Admin sẽ bỏ qua bước lọc và xem tất cả.
+
+            //Pagination and mapping to ViewModel (giữ nguyên)
             var result = await query
                 .OrderByDescending(c => c.ClassroomId)
                 .Skip((filter.Page - 1) * filter.PageSize)
@@ -159,7 +205,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                     ClassroomId = c.ClassroomId,
                     ClassName = c.ClassName,
                     ClassSub = c.ClassSubNavigation.SubName,
-                    MainClassName =c.MainClassNavigation.ClassName,
+                    MainClassName = c.MainClassNavigation.ClassName,
                     Course = c.MainClassNavigation.Course,
                     LecturerName = c.CreateByNavigation.FirstName,
                     ClassStatus = c.ClassStatus,

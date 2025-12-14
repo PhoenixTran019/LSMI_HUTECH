@@ -15,7 +15,7 @@ namespace LmsMini.Application.Interfaces
 
         Task<bool> CreateClassroomAsync (CreateClassroomDto dto, string staffId);
 
-        Task<List<ClassroomCardViewModel>> GetDashboardClassroomsAsync(ClassroomFilterDto filter, List<string>? allowedDepartIds);
+        Task<List<ClassroomCardViewModel>> GetDashboardClassroomsAsync(ClassroomFilterDto filter, string role, string userId);
 
         Task<bool> AddMemberToClassroomAsync(string clasroomId, string userId, string role);
 

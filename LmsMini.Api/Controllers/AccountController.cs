@@ -82,6 +82,7 @@ namespace LmsMini.Api.Controllers
             {
                 "Admin" => "/admin/dashboard",
                 "Staff" => "/staff/dashboard",
+                "Lecturer" => "/lecturer/dashboard",
                 "Student" => "/student/dashboard",
                 _ => "/home"
             };
