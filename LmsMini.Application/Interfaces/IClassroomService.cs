@@ -27,6 +27,8 @@ namespace LmsMini.Application.Interfaces
 
         Task<bool> DeleteClassroomAsync(string classroomId, string staffId, string webRootPath);
 
-        
+        Task<List<ClassroomMemberListItemDto>> GetMembersAsync(string classroomId);
+
+        Task<bool> RemoveMemberAsync(string classroomId, string memberId, string staffId);
     }
 }

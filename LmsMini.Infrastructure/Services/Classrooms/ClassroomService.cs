@@ -541,5 +541,51 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
         }
 
+        //==========SERVICE TO GET ALL MEMBERS OF CLASSROOM==========
+        public async Task<List<ClassroomMemberListItemDto>> GetMembersAsync(string classroomId)
+        {
+            if (string.IsNullOrWhiteSpace(classroomId))
+                throw new ArgumentException("classroomId is required");
+
+            var members = await _context.ClassroomMembers
+                .AsNoTracking()
+                .Include(m => m.Student)
+                .Include(m => m.Lecturer)
+                .Where(m => m.ClassroomId == classroomId)
+                .Select(m => new ClassroomMemberListItemDto
+                {
+                    MemberId = m.MemberId,
+                    RoleInClass = m.RoleInClass,
+                    StudentId = m.StudentId,
+                    LecturerId = m.LecturerId,
+                    FullName = m.StudentId != null
+                        ? ((m.Student!.FirstName ?? "") + " " + (m.Student!.LastName ?? "")).Trim()
+                        : ((m.Lecturer!.FirstName ?? "") + " " + (m.Lecturer!.LastName ?? "")).Trim(),
+                    Mail = m.StudentId != null ? m.Student!.Mail : m.Lecturer!.Mail
+                })
+                .ToListAsync();
+
+            return members;
+        }
+
+        //==========SERVICE TO REMOVE MEMBER FROM CLASSROOM==========
+        public async Task<bool> RemoveMemberAsync(string classroomId, string memberId, string staffId)
+        {
+            if (string.IsNullOrWhiteSpace(classroomId) || string.IsNullOrWhiteSpace(memberId))
+                return false;
+
+            var member = await _context.ClassroomMembers
+                .FirstOrDefaultAsync(m => m.ClassroomId == classroomId && m.MemberId == memberId);
+
+            if (member == null) return false;
+
+            _context.ClassroomMembers.Remove(member);
+
+            // (Optional) log nếu muốn – hiện giữ đơn giản để chạy nhanh
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+
     }
 }

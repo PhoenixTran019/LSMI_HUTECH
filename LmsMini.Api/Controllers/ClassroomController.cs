@@ -156,5 +156,30 @@ namespace LmsMini.Api.Controllers
 
             return NoContent();
         }
+
+        //==========GET MEMBERS==========
+        [Authorize(Roles = "Staff, Lecturer, Admin")]
+        [HttpGet("{classroomId}/members")]
+        public async Task<IActionResult> GetMembers(string classroomId)
+        {
+            var result = await _classroomService.GetMembersAsync(classroomId);
+            return Ok(result);
+        }
+
+        //==========REMOVE MEMBER==========
+        [Authorize(Roles = "Staff, Lecturer, Admin")]
+        [HttpDelete("{classroomId}/members/{memberId}")]
+        public async Task<IActionResult> RemoveMember(string classroomId, string memberId)
+        {
+            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(staffId))
+                return Unauthorized("Cannot identify staff from token.");
+
+            var ok = await _classroomService.RemoveMemberAsync(classroomId, memberId, staffId);
+            if (!ok) return NotFound("Member not found or unable to remove.");
+
+            return NoContent();
+        }
+
     }
 }
