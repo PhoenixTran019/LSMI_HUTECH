@@ -164,5 +164,55 @@ namespace LmsMini.Api.Controllers
             }
         }
 
+
+        //==========GET DASHBOARD ==========
+        [Authorize(Roles = "Admin, Lecturer, Staff")]
+        [HttpGet("{proClassId}/Dashboard")]
+        public async Task<IActionResult> GetDashboard(string proClassId)
+        {
+            try
+            {
+                var result = await _projectClassroomService.GetDashboardAsync(proClassId);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { Error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = ex.Message });
+            }
+        }
+
+        //==========DELETE CONTENT ==========
+        [Authorize(Roles = "Admin, Lecturer, Staff")]
+        [HttpDelete("{proClassId}/Delete-content/{contentId}")]
+        public async Task<IActionResult> DeleteContent(string proClassId, string contentId)
+        {
+            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(staffId))
+                return Unauthorized("Cannot identify staff from token.");
+
+            try
+            {
+                await _projectClassroomService.DeleteProContentAsync(proClassId, contentId, staffId);
+                return NoContent();
+            }
+            catch (AggregateException ex)
+            {
+                return BadRequest(new { Error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Error = ex.Message });
+            }
+        }
+
+
     }
 }
