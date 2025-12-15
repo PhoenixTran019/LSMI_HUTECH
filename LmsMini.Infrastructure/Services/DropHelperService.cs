@@ -37,5 +37,31 @@ namespace LmsMini.Infrastructure.Services
             
             return groups;
         }
+
+        public async Task<List<ClassSubjectDropDto>> GetClassSubjectDropDownAsync()
+        {
+            var ClassSub = await _context.Subjects
+                .Select(s => new ClassSubjectDropDto
+                {
+                    SubId = s.SubId,
+                    SubName = s.SubName
+                })
+                .ToListAsync();
+
+            return ClassSub;
+        }
+
+        public async Task<List<MainClassDropDto>> GetMainClassDropDownAsync()
+        {
+            var mainClass = await _context.Classes
+                .Select(m => new MainClassDropDto
+                {
+                    ClassId = m.ClassId,
+                    ClassName = m.ClassName
+                })
+                .ToListAsync();
+
+            return mainClass;
+        }
     }
 }

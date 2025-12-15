@@ -31,26 +31,24 @@ namespace LmsMini.Api.Controllers
             return Ok (groups); 
         }
 
-        [Authorize (Roles = "Staff, Admin, Lecturer")]
+        [Authorize(Roles = "Staff, Admin, Lecturer")]
         [HttpGet("Classroom/Subject")]
-        public async Task <IActionResult> GetClassSubDrop()
+        public async Task<IActionResult> GetClassSubDrop()
         {
-            var ClassSub = await _context.Subjects
-                .Select(s => new { s.SubId, s.SubName })
-                .ToListAsync();
-            return Ok(ClassSub);
+            // Logic đã được chuyển vào Service
+            var ClassSub = await _dropHeplerService.GetClassSubjectDropDownAsync();
 
+            return Ok(ClassSub);
         }
 
         [Authorize(Roles = "Staff, Admin, Lecturer")]
-        [HttpGet("Clasroom/MainClass")]
-        public async Task <IActionResult> GetMainClass()
+        [HttpGet("Classroom/MainClass")]
+        public async Task<IActionResult> GetMainClass()
         {
-            var mainClass = await _context.Classes
-                .Select(m => new { m.ClassId, m.ClassName })
-                .ToListAsync();
+            // Logic đã được chuyển vào Service
+            var mainClass = await _dropHeplerService.GetMainClassDropDownAsync();
+
             return Ok(mainClass);
         }
-
     }
 }

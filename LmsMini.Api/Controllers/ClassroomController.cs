@@ -104,7 +104,18 @@ namespace LmsMini.Api.Controllers
         [HttpGet("{classroomId}/Classroom-Dashboard-Detail")]
         public async Task<IActionResult> GetClassroomOverview (string classroomId)
         {
-            var result = await _classroomService.GetOverviewAsync(classroomId);
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
+            {
+                // Có thể xảy ra nếu token có vấn đề nhưng đã vượt qua Authorize
+                return Unauthorized("User identity or role is missing.");
+            }
+
+            // Truyền userId và role vào Service
+            var result = await _classroomService.GetOverviewAsync(classroomId, userId, role);
 
             if (result == null)
                 return NotFound("Classroom not found.");
