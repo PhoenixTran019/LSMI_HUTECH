@@ -39,17 +39,23 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             var classSubEntity = await _context.Subjects.FirstOrDefaultAsync(d => d.SubId == dto.ClassSub);
             if (classSubEntity == null) throw new AggregateException("Invalid Subject");
 
-            var mainClassEntity = await _context.Classes.FirstOrDefaultAsync(cl => cl.ClassId == dto.MainClass);
-            if (mainClassEntity == null) throw new AggregateException("Invaild Main Class");
-
-
-
             //If have main class, take Course of this
 
+            // Khởi tạo mainClassEntity là null
+            Class? mainClassEntity = null;
+
+            // Chỉ kiểm tra MainClass nếu người dùng có cung cấp giá trị
             if (!string.IsNullOrWhiteSpace(dto.MainClass))
             {
+                // Lấy thông tin MainClass từ DB
                 mainClassEntity = await _context.Classes
-                    .FirstOrDefaultAsync(c => c.ClassId == dto.MainClass);
+                    .FirstOrDefaultAsync(cl => cl.ClassId == dto.MainClass);
+
+                // Nếu người dùng cung cấp ID nhưng ID đó không tồn tại trong DB, thì báo lỗi.
+                if (mainClassEntity == null)
+                {
+                    throw new AggregateException("Invalid Main Class ID provided");
+                }
             }
 
             var classroom = new Classroom
@@ -264,8 +270,32 @@ namespace LmsMini.Infrastructure.Services.Classrooms
         }
 
         //Service to get overview of classroom
-        public async Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId)
+        public async Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId, string userId, string role)
         {
+            var classroom = await _context.Classrooms
+                .Where(c => c.ClassroomId == classroomId)
+                .Select(c => new
+                {
+                    c.ClassroomId,
+                    c.ClassName,
+                    c.Description,
+                    c.InviteCode,
+                    c.ClassStatus,
+
+                    ClassSubName = c.ClassSubNavigation.SubName,
+
+                    LecturerFirstName = c.CreateByNavigation.FirstName,
+                    LecturerLastName = c.CreateByNavigation.LastName,
+
+                    IsTeacher = c.ClassroomMembers.Any(cm => cm.LecturerId == userId && cm.RoleInClass == "Teacher"),
+                    IsStudent = c.ClassroomMembers.Any(cm => cm.StudentId == userId && cm.RoleInClass == "Student"),
+
+                })
+                .FirstOrDefaultAsync();
+
+            if (classroom == null)
+                return null;
+
             var lesson = await _context.Lessons
                 .Where(l => l.ClassroomId == classroomId)
                 .Select(l => new LessonViewDto
@@ -287,10 +317,26 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                     DeadlineStatus = a.Deadline > DateTime.UtcNow ? "Valid" : "Overdue"
 
                 }).ToListAsync();
+            // 4. Áp dụng Logic ẩn/hiện InviteCode
+            string? inviteCodeForUser = null;
+
+            // Nếu là Admin HOẶC (Lecturer/Staff VÀ là Teacher của lớp)
+            if (role == "Admin" || classroom.IsTeacher || role == "Staff")
+            {
+                inviteCodeForUser = classroom.InviteCode;
+            }
 
             return new ClassroomOverviewDto
             {
-                ClassroomId = classroomId,
+                ClassroomId = classroom.ClassroomId,
+                ClassName = classroom.ClassName,
+                ClassSub = classroom.ClassSubName,
+                LecturerName = classroom.LecturerFirstName + " " + classroom.LecturerLastName,
+                Description = classroom.Description,
+                Status = classroom.ClassStatus,
+
+                InviteCode = inviteCodeForUser, // Sẽ là null nếu người dùng là Student
+
                 Lessons = lesson,
                 Assignments = assignment
             };

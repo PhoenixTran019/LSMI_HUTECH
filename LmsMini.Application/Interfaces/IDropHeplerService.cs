@@ -10,5 +10,9 @@ namespace LmsMini.Application.Interfaces
      public interface IDropHeplerService
     {
         Task<List<GroupProjectDropDto>> GetGroupsForLecturerAsync(string lecturerId);
+
+        Task<List<ClassSubjectDropDto>> GetClassSubjectDropDownAsync();
+
+        Task<List<MainClassDropDto>> GetMainClassDropDownAsync();
     }
 }

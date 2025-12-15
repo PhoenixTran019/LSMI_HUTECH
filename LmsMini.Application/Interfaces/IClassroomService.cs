@@ -21,7 +21,7 @@ namespace LmsMini.Application.Interfaces
 
         Task<bool> UpdateMemberRoleAsync (string classroomId, string userId, string newRole);
 
-        Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId);
+        Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId, string userId, string role);
 
         Task<bool> UpdateClassroomAsync(string classroomId, UpdateClassroomDto dto, string staffId);
 
