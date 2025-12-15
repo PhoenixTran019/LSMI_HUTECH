@@ -29,4 +29,8 @@
     <ProjectReference Include="..\LmsMini.Infrastructure\LmsMini.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
 </Project>

@@ -1,27 +1,48 @@
 ﻿using LmsMini.Application.DTOs.ClassAssignment;
 using LmsMini.Application.Interfaces;
+using LmsMini.Domain.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace LmsMini.Api.Controllers
 {
     [ApiController]
-    [Route("api/{classroomId}/Lessons")]
+    [Route("api/{classroomId}/Assignment")]
     public class AssignmentController : Controller
     {
         private readonly IAssigmentService _assigment;
         private readonly IWebHostEnvironment _env;
+        private readonly LmsDbContext _context;
+
+        public AssignmentController (IAssigmentService assigment, IWebHostEnvironment env, LmsDbContext context)
+        {
+            _assigment = assigment;
+            _env = env;
+            _context = context;
+        }
+
+
 
         //Create Assignment with file uploads
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpPost("create-assignment")]
         public async Task<IActionResult> CreateAssignment([FromForm] CreateAssigmentWithFilesDto dto)
         {
-            var teacherId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(teacherId))
-                return Unauthorized("Cannot identify teacher from token.");
+            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == staffId);
 
-            var assignId = await _assigment.CreateAssignmentWithFilesAsync(dto, teacherId, _env.WebRootPath);
+            if (staff == null)
+            {
+
+                return StatusCode(403, new
+                {
+                    Message = "Không thể xác định nhân viên thực hiện tác vụ này trong hệ thống nghiệp vụ."
+                });
+            }
+
+            var assignId = await _assigment.CreateAssignmentWithFilesAsync(dto, staff.StaffId, _env.WebRootPath);
 
             return Ok(new { AssignmentID = assignId });
         }
@@ -52,15 +73,22 @@ namespace LmsMini.Api.Controllers
         {
             dto.ClasroomID = classroomId;
             dto.AssignmentID = assignmentId;
-            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(staffId))
-                return Unauthorized("Cannot identify staff from token.");
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == userId);
+            if (staff == null)
+            {
+
+                return StatusCode(403, new
+                {
+                    Message = "Không thể xác định nhân viên thực hiện tác vụ này trong hệ thống nghiệp vụ."
+                });
+            }
 
             var webRootPath = _env.WebRootPath;
             if(string.IsNullOrEmpty(webRootPath))
                 return StatusCode(500, "Web root path is not configured.");
 
-            var ok = await _assigment.UpdateAssignmentAsync(classroomId, assignmentId, dto, staffId, webRootPath);
+            var ok = await _assigment.UpdateAssignmentAsync(classroomId, assignmentId, dto, staff.StaffId, webRootPath);
             if (!ok)
                 return StatusCode(500, "Failed to update assignment.");
 
@@ -73,12 +101,19 @@ namespace LmsMini.Api.Controllers
         public async Task<IActionResult> DeleteAssignment(string classroomId, string assignmentId)
         {
             //StaffId stored in JWT claim
-            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (string.IsNullOrEmpty(staffId))
-                return Unauthorized("Cannot identify staff from token.");
+            var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == userId);
+            if (staff == null)
+            {
 
-            var ok = await _assigment.DeleteAssignmentAsync(classroomId, assignmentId, staffId, _env.WebRootPath);
+                return StatusCode(403, new
+                {
+                    Message = "Không thể xác định nhân viên thực hiện tác vụ này trong hệ thống nghiệp vụ."
+                });
+            }
+
+            var ok = await _assigment.DeleteAssignmentAsync(classroomId, assignmentId, staff.StaffId, _env.WebRootPath);
 
             if (!ok)
                 return NotFound("Assignment not found or unanble to delete");

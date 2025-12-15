@@ -63,5 +63,18 @@ namespace LmsMini.Infrastructure.Services
 
             return mainClass;
         }
+
+        public async Task<List<StaffInforDropDto>> GetStaffInforDorpAsync()
+        {
+            var staffInfor = await _context.DepartmentStaffs
+                .Select(m => new StaffInforDropDto
+                {
+                    StaffID = m.StaffId,
+                    StaffFullName = m.LastName + " " + m.FirstName
+                })
+                .ToListAsync();
+
+            return staffInfor;
+        }
     }
 }

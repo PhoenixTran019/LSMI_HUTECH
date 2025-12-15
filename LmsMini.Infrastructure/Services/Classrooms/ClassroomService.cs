@@ -1,4 +1,5 @@
-﻿using LmsMini.Application.Common.Helpers;
+﻿using AutoMapper.Execution;
+using LmsMini.Application.Common.Helpers;
 using LmsMini.Application.DTOs.Classroom;
 using LmsMini.Application.DTOs.Lesson;
 using LmsMini.Application.Interfaces;
@@ -222,19 +223,78 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             return result;
         }
 
+        //==========SERVICE TO GET LIST MEMBER IN THIS CLASSROOM==========
+        public async Task<IEnumerable<MemberInfoDto>> GetClassroomMembersAsync(string classroomId)
+        {
+            var classroomExists = await _context.Classrooms.AnyAsync(c => c.ClassroomId == classroomId);
+            if (!classroomExists)
+            {
+                return Enumerable.Empty<MemberInfoDto>();
+            }
+
+            var lecturerMem = await _context.ClassroomMembers
+                .Where(m => m.ClassroomId == classroomId && m.LecturerId != null)
+                .Join(
+                    _context.DepartmentStaffs,
+                    member => member.LecturerId,
+                    staff => staff.StaffId,
+                    (member, staff) => new MemberInfoDto
+                    {
+                        MemberId = member.MemberId,
+                        UserId = member.LecturerId,
+                        FullName = staff.LastName + " " + staff.FirstName,
+                        Email = staff.Mail,
+                        RoleInClass = member.RoleInClass
+                    }
+                )
+                .ToListAsync();
+
+            var studentMem = await _context.ClassroomMembers
+                .Where(m => m.ClassroomId == classroomId && m.StudentId != null)
+                .Join(
+                    _context.Students,
+                    member => member.StudentId,
+                    student => student.StudentId,
+                    (member, student) => new MemberInfoDto
+                    {
+                        MemberId = member.MemberId,
+                        UserId = member.StudentId,
+                        FullName = student.LastName + " " + student.FirstName,
+                        Email = student.Mail,
+                        RoleInClass = member.RoleInClass
+                    }
+                )
+                .ToListAsync();
+
+            return lecturerMem
+                .Concat(studentMem)
+                .OrderBy(m => m.RoleInClass)
+                .ToList();
+        }
+
         //==========Service to add member to classroom==========
-        public async Task<bool> AddMemberToClassroomAsync (string classroomId, string userId, string role)
+        public async Task<bool> AddMemberToClassroomAsync (string classroomId, string userId, string role, AddMemberDto dto)
         {
             var classroom = await _context.Classrooms.FindAsync(classroomId);
             if (classroom == null) return false;
 
-            bool isLecturer = role == "Teacher";
+            const string TeacherRole = "Teacher";
+            bool isLecturer = role == TeacherRole;
 
-            var exists = await _context.ClassroomMembers
-                .AnyAsync(m => m.ClassroomId == classroomId &&
-                                ((isLecturer && m.LecturerId == userId) || (!isLecturer && m.StudentId == userId)));
+            if (!isLecturer)
+            {
+                // Theo yêu cầu, sinh viên phải tự vào bằng Invite Code.
+                // Nếu muốn thêm vai trò Student, cần một Service/Action khác (JoinByCode).
+                return false; // Lỗi: Không được phép thêm vai trò này bằng tay.
+            }
 
-            if (exists) return false; // Member already exists -> do not add again
+            var staffInfor = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.StaffId == dto.UserId);
+            if (staffInfor  == null) throw new AggregateException("Invalid Staff");
+
+            var existsInAnyRole = await _context.ClassroomMembers
+        .AnyAsync(m => m.ClassroomId == classroomId && (m.LecturerId == userId || m.StudentId == userId));
+
+            if (existsInAnyRole) return false; // Thành viên đã tồn tại -> không thêm lại
 
             var member = new ClassroomMember
             {
@@ -252,13 +312,19 @@ namespace LmsMini.Infrastructure.Services.Classrooms
         //==========Service to update role==========
         public async Task<bool> UpdateMemberRoleAsync (string classroomId, string userId, string newRole)
         {
-            bool isLecturer = newRole == "Teacher";
+            const string TeacherRole = "Teacher";
+            bool isLecturer = newRole == TeacherRole;
 
             var member = await _context.ClassroomMembers
                 .FirstOrDefaultAsync(m => m.ClassroomId == classroomId &&
                                           ((m.LecturerId == userId)|| (m.StudentId == userId)));
 
             if (member == null) return false;
+
+            if (member.RoleInClass == newRole)
+            {
+                return true; // Không cần cập nhật, coi như thành công
+            }
 
             member.RoleInClass = newRole;
             member.LecturerId = isLecturer ? userId : null;
@@ -272,6 +338,21 @@ namespace LmsMini.Infrastructure.Services.Classrooms
         //Service to get overview of classroom
         public async Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId, string userId, string role)
         {
+            string? businessId = null;
+            if (role == "Lecturer" || role == "Staff" || role == "Admin")
+            {
+                // Tra cứu StaffId (Username) từ bảng StaffDeparts bằng UserId (UUIDv7)
+                businessId = await _context.DepartmentStaffs
+                    .Where(s => s.UserId== userId)
+                    .Select(s => s.StaffId)
+                    .FirstOrDefaultAsync();
+            }
+            // Nếu là Student, có thể StudentId cũng lưu UUIDv7 (userId), nên ta dùng luôn userId
+            else if (role == "Student")
+            {
+                // Giả sử cột StudentId trong ClassroomMembers đang lưu UUIDv7
+                businessId = userId;
+            }
             var classroom = await _context.Classrooms
                 .Where(c => c.ClassroomId == classroomId)
                 .Select(c => new
@@ -287,8 +368,8 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                     LecturerFirstName = c.CreateByNavigation.FirstName,
                     LecturerLastName = c.CreateByNavigation.LastName,
 
-                    IsTeacher = c.ClassroomMembers.Any(cm => cm.LecturerId == userId && cm.RoleInClass == "Teacher"),
-                    IsStudent = c.ClassroomMembers.Any(cm => cm.StudentId == userId && cm.RoleInClass == "Student"),
+                    IsTeacher = c.ClassroomMembers.Any(cm => cm.LecturerId == businessId && cm.RoleInClass == "Teacher"),
+                    IsStudent = c.ClassroomMembers.Any(cm => cm.StudentId == businessId && cm.RoleInClass == "Student"),
 
                 })
                 .FirstOrDefaultAsync();

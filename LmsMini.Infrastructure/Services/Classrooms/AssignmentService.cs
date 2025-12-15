@@ -32,6 +32,12 @@ namespace LmsMini.Infrastructure.Services.Classrooms
         //==========Service to create a new assignment with file uploads==========
         public async Task<string> CreateAssignmentWithFilesAsync(CreateAssigmentWithFilesDto dto, string teacherId, string webRootPath)
         {
+            // 1. Kiểm tra WebRootPath để tránh crash 500 như phần Lesson
+            if (string.IsNullOrEmpty(webRootPath))
+            {
+                throw new InvalidOperationException("WebRootPath is missing. Ensure 'wwwroot' folder exists.");
+            }
+
             var assignId = Uuidv7Generator.NewUuid7().ToString();
 
             //Create folder for this assignment
@@ -84,18 +90,19 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                     };
                     await _context.AssignmentFiles.AddAsync(assignmentFile);
 
-                    await _context.ActivityLogs.AddAsync(new ActivityLog
-                    {
-                        LogId = Uuidv7Generator.NewUuid7().ToString(),
-                        StaffId = teacherId,
-                        Action = "Create Assignment",
-                        TargetId = assignId,
-                        TargetTable = "Assignments",
-                        TargetName = dto.Title,
-                        Timestap = DateTime.UtcNow
-                    });
+                    
                 }
             }
+            await _context.ActivityLogs.AddAsync(new ActivityLog
+            {
+                LogId = Uuidv7Generator.NewUuid7().ToString(),
+                StaffId = teacherId,
+                Action = "Create Assignment",
+                TargetId = assignId,
+                TargetTable = "Assignments",
+                TargetName = dto.Title,
+                Timestap = DateTime.UtcNow
+            });
             await _context.SaveChangesAsync();
             return assignId;
         }
@@ -345,7 +352,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
                 //===Delete DB records===
                 _context.AssignmentFiles.RemoveRange(files);
-                _context.Assignments.Remove(new Assignment { AssignId = assignmentId});
+                _context.Assignments.Remove(assignment);
 
                 //===Log activity===
                 try

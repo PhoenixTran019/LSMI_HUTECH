@@ -30,6 +30,12 @@ namespace LmsMini.Infrastructure.Services
         //==========Service to create a new lesson with file uploads==========
         public async Task<string> CreateLessonWithFilesAsync(CreateLessonWithFilesDto dto, string staffId, string webRootPath)
         {
+            if (string.IsNullOrEmpty(webRootPath))
+            {
+                // Ném lỗi rõ ràng thay vì để Path.Combine tự crash
+                throw new InvalidOperationException("WebRootPath is missing. Please ensure the 'wwwroot' folder exists in your project root.");
+            }
+
             //Create Lesson ID.
             var lessonId = Uuidv7Generator.NewUuid7().ToString();
 
@@ -70,6 +76,10 @@ namespace LmsMini.Infrastructure.Services
                 {
                     LogId = Uuidv7Generator.NewUuid7().ToString(),
                     StaffId = staffId,
+                    DepartId = _context.StaffDeparts
+                        .Where(s => s.StaffId == staffId)
+                        .Select(s => s.DepartId)
+                        .FirstOrDefault(),
                     Action = "Create Lesson",
                     TargetId = lessonId,
                     TargetTable = "Lessons",
@@ -173,6 +183,12 @@ namespace LmsMini.Infrastructure.Services
 
             if (lesson == null) return false;
 
+            // ✅ SỬA 1: Kiểm tra null webRootPath
+            if (string.IsNullOrEmpty(webRootPath))
+            {
+                throw new InvalidOperationException("WebRootPath is missing. Cannot perform file operations.");
+            }
+
             //1. Update Title/Content if client send
             if (!string.IsNullOrWhiteSpace(dto.Title))
                 lesson.Title = dto.Title.Trim();
@@ -180,7 +196,7 @@ namespace LmsMini.Infrastructure.Services
             if (dto.Content != null)
                 lesson.Content = dto.Content.Trim();
 
-            var folderPath = Path.Combine(webRootPath, "uploads", "Lessons", lesson.ClassroomId, lesson.ClassroomId);
+            var folderPath = Path.Combine(webRootPath, "uploads", "Lessons", lesson.ClassroomId, lesson.LessonId);
 
             //Create new folder if folder doesn't esixt
             Directory.CreateDirectory(folderPath);
@@ -297,37 +313,45 @@ namespace LmsMini.Infrastructure.Services
                 .FirstOrDefaultAsync(l => l.LessonId == lessonId && l.ClassroomId == classroomId);
 
             if (lesson == null) return false;
-
-            //Full path Folder
-            var lessonFolder = Path.Combine(webRootPath, "uploads", "Lessons", classroomId, lessonId);
-
-            //Delete physical files
-            foreach( var file in lesson.LessonFiles)
+            if (string.IsNullOrEmpty(webRootPath))
             {
+                // Nếu không có webRootPath, ta vẫn có thể xóa DB, nhưng cần Log cảnh báo
+                _logger.LogWarning("WebRootPath is missing. Deleting DB records only, skipping physical file deletion for lesson {LessonId}", lessonId);
+            }
+            else
+            {
+
+                //Full path Folder
+                var lessonFolder = Path.Combine(webRootPath, "uploads", "Lessons", classroomId, lessonId);
+
+                //Delete physical files
+                foreach (var file in lesson.LessonFiles)
+                {
+                    try
+                    {
+                        var fileName = Path.GetFileName(file.FilePath);
+                        var phisicalPath = Path.Combine(lessonFolder, fileName);
+                        if (File.Exists(phisicalPath))
+                            File.Delete(phisicalPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error deleting physical file for lesson {LessonId}", lessonId);
+                    }
+                }
+
+                //If folder empty, delete folder
                 try
                 {
-                    var fileName = Path.GetFileName(file.FilePath);
-                    var phisicalPath = Path.Combine(lessonFolder, fileName);
-                    if (File.Exists(phisicalPath))
-                        File.Delete(phisicalPath);
+                    if (Directory.Exists(lessonFolder) && !Directory.EnumerateFileSystemEntries(lessonFolder).Any())
+                    {
+                        Directory.Delete(lessonFolder, true);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Error deleting physical file for lesson {LessonId}", lessonId);
+                    _logger.LogWarning(ex, "Error deleting lesson folder for lesson {Folder}", lessonFolder);
                 }
-            }
-
-            //If folder empty, delete folder
-            try
-            {
-                if (Directory.Exists(lessonFolder) && !Directory.EnumerateFileSystemEntries(lessonFolder).Any())
-                {
-                    Directory.Delete(lessonFolder, true);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error deleting lesson folder for lesson {Folder}", lessonFolder);
             }
 
             //Delete DB records

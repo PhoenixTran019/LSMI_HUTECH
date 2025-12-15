@@ -68,17 +68,32 @@ namespace LmsMini.Api.Controllers
         [HttpPost("{classroomId}/add-member")]
         public async Task<IActionResult> AddMember(string classroomId, [FromBody]AddMemberDto dto)
         {
-            var currentUserId = User.FindFirst (ClaimTypes.NameIdentifier)?.Value;
-
-            var isTeacher = await _context.ClassroomMembers
-                .AnyAsync(m => m.ClassroomId == classroomId &&
-                               m.LecturerId == currentUserId &&
-                               m.RoleInClass == "Teacher");
-
-            if(!isTeacher) return Forbid("Only teacher can add member to class.");
+            if (!await IsCurrentUserClassTeacher(classroomId))
+            {
+                return Forbid("Only a teacher can add members to the class.");
+            }
 
             var success = await _classroomService.AddMemberToClassroomAsync(classroomId, dto.UserId, dto.Role);
-            return success ? Ok() : BadRequest("User already exists in classroom.");
+
+            // Gợi ý: Phân biệt lỗi để trả về thông báo rõ ràng hơn
+            return success ? Ok() : BadRequest("Failed to add member (e.g., User already exists or Classroom not found).");
+        }
+
+        [Authorize]
+        [HttpGet("{classroomId}/members")]
+        public async Task<IActionResult> GetClassroomMembers (string classroomId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var members = await _classroomService.GetClassroomMembersAsync(classroomId);
+
+            if (members == null || !members.Any())
+            {
+                // Có thể lớp học không tồn tại hoặc không có thành viên
+                return NotFound("Classroom not found or no members available.");
+            }
+
+            return Ok(members);
         }
 
         //chage roll in class
@@ -86,17 +101,13 @@ namespace LmsMini.Api.Controllers
         [HttpPut("{classroomId}/update-role")]
         public async Task<IActionResult> UpdateRole (string classroomId, [FromBody] UpdateRoleDto dto)
         {
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!await IsCurrentUserClassTeacher(classroomId))
+            {
+                return Forbid("Only Teachers can update roles.");
+            }
 
-            var isTeacher = await _context.ClassroomMembers
-                .AnyAsync(m => m.ClassroomId == classroomId &&
-                               m.LecturerId == currentUserId &&
-                               m.RoleInClass == "Teacher");
-
-            if (!isTeacher) return Forbid("Only Teachers can update roles.");
-
-            var succes = await _classroomService.UpdateMemberRoleAsync(classroomId, dto.UserId, dto.NewRole);
-            return succes ? Ok() : BadRequest("Member not found");
+            var success = await _classroomService.UpdateMemberRoleAsync(classroomId, dto.UserId, dto.NewRole);
+            return success ? Ok() : BadRequest("Member not found or role update failed.");
         }
 
         //==========Get view  lesson and assignment in classroom==========
@@ -155,6 +166,19 @@ namespace LmsMini.Api.Controllers
                 return NotFound("Class not found or cannot delete");
 
             return NoContent();
+        }
+
+        private async Task<bool> IsCurrentUserClassTeacher(string classroomId)
+        {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId)) return false;
+
+            // Chuyển việc kiểm tra này vào Service (tốt nhất) hoặc giữ nguyên
+            // Nếu bạn giữ nguyên, ít nhất là logic được đặt trong một hàm riêng.
+            return await _context.ClassroomMembers
+                .AnyAsync(m => m.ClassroomId == classroomId &&
+                               m.LecturerId == currentUserId &&
+                               m.RoleInClass == "Teacher");
         }
     }
 }
