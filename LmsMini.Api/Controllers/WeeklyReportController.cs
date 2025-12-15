@@ -17,7 +17,7 @@ namespace LmsMini.Api.Controllers
         public WeeklyReportController(ILecWeekReportService weekReportService, IHttpContextAccessor http)
         {
             _weekReportService = weekReportService;
-            
+            _http = http;
 
         }
 
