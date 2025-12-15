@@ -12,6 +12,12 @@ namespace LmsMini.Api.Controllers
         private readonly IAssigmentService _assigment;
         private readonly IWebHostEnvironment _env;
 
+        public AssignmentController(IAssigmentService assigment, IWebHostEnvironment env)
+        {
+            _assigment = assigment;
+            _env = env;
+        }
+
         //Create Assignment with file uploads
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpPost("create-assignment")]
