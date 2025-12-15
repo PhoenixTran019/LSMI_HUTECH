@@ -44,5 +44,17 @@ namespace LmsMini.Api.Controllers
 
             return Ok(new { ClassroomId = classroomId, Message = "Successfully joined the classroom." });
         }
+
+        [HttpGet("My-Classrooms")]
+        public async Task<IActionResult> GetMyClassrooms()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized("Cannot identify user from token.");
+
+            var result = await _studentClassroomService.GetMyClassroomsAsync(userId);
+            return Ok(result);
+        }
+
     }
 }

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using LmsMini.Application.Models;
 
 namespace LmsMini.Infrastructure.Services.Students
 {
@@ -58,6 +59,46 @@ namespace LmsMini.Infrastructure.Services.Students
 
             return classroom.ClassroomId;
 
+        }
+
+        public async Task<List<ClassroomCardViewModel>> GetMyClassroomsAsync(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("userId is required");
+
+            // map userId -> studentId (fallback nếu hệ đang dùng studentId == userId)
+            var studentId = await _context.Students
+                .Where(s => s.UserId == userId)
+                .Select(s => s.StudentId)
+                .FirstOrDefaultAsync();
+
+            studentId ??= userId;
+
+            var classroomIds = await _context.ClassroomMembers
+                .Where(m => m.StudentId == studentId)
+                .Select(m => m.ClassroomId)
+                .Where(id => id != null)
+                .Select(id => id!)
+                .ToListAsync();
+
+            var result = await _context.Classrooms
+                .AsNoTracking()
+                .Where(c => classroomIds.Contains(c.ClassroomId))
+                .OrderByDescending(c => c.CreateDate)
+                .Select(c => new ClassroomCardViewModel
+                {
+                    ClassroomId = c.ClassroomId,
+                    ClassName = c.ClassName ?? "",
+                    ClassSub = c.ClassSubNavigation != null ? c.ClassSubNavigation.SubName : (c.ClassSub ?? ""),
+                    MainClassName = c.MainClassNavigation != null ? c.MainClassNavigation.ClassName : (c.MainClass ?? ""),
+                    Course = c.MainClassNavigation != null ? c.MainClassNavigation.Course : "",
+                    LecturerName = c.CreateByNavigation != null ? c.CreateByNavigation.FirstName : "",
+                    ClassStatus = c.ClassStatus ?? "",
+                    InviteCode = c.InviteCode ?? ""
+                })
+                .ToListAsync();
+
+            return result;
         }
     }
 }
