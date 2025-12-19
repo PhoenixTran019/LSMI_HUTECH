@@ -164,11 +164,11 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 if (role == "Lecturer")
                 {
                     // Nếu là Lecturer, chỉ được thấy các lớp họ là thành viên (LecturerId)
-                    if (!string.IsNullOrEmpty(staffId))
+                    if (!string.IsNullOrEmpty(userId))
                     {
                         // Lấy danh sách ClassroomId mà Lecturer này là thành viên/người tạo
                         var memberClassroomIds = await _context.ClassroomMembers
-                            .Where(m => m.LecturerId == staffId)
+                            .Where(m => m.LecturerId == userId)
                             .Select(m => m.ClassroomId)
                             .Distinct()
                             .ToListAsync();
@@ -185,10 +185,10 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 else if (role == "Staff")
                 {
                     // Nếu là Staff (quản lý phòng ban), dùng logic lọc cũ theo DepartId
-                    if (!string.IsNullOrEmpty(staffId))
+                    if (!string.IsNullOrEmpty(userId))
                     {
                         var allowedDepartIds = await _context.StaffDeparts
-                            .Where(sd => sd.StaffId == staffId)
+                            .Where(sd => sd.StaffId == userId)
                             .Select(sd => sd.DepartId)
                             .ToListAsync();
 
@@ -273,36 +273,44 @@ namespace LmsMini.Infrastructure.Services.Classrooms
         }
 
         //==========Service to add member to classroom==========
-        public async Task<bool> AddMemberToClassroomAsync (string classroomId, string userId, string role, AddMemberDto dto)
+        public async Task<bool> AddMemberToClassroomAsync(string classroomId, string memberUserId, string role)
         {
+            // 1. Kiểm tra Lớp học tồn tại
             var classroom = await _context.Classrooms.FindAsync(classroomId);
-            if (classroom == null) return false;
+            if (classroom == null)
+            {
+                throw new KeyNotFoundException($"Classroom with ID '{classroomId}' not found.");
+            }
 
             const string TeacherRole = "Teacher";
             bool isLecturer = role == TeacherRole;
 
             if (!isLecturer)
             {
-                // Theo yêu cầu, sinh viên phải tự vào bằng Invite Code.
-                // Nếu muốn thêm vai trò Student, cần một Service/Action khác (JoinByCode).
-                return false; // Lỗi: Không được phép thêm vai trò này bằng tay.
+                throw new InvalidOperationException("Manual addition is only allowed for the 'Teacher' role. Students must join using the invite code.");
             }
 
-            var staffInfor = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.StaffId == dto.UserId);
-            if (staffInfor  == null) throw new AggregateException("Invalid Staff");
 
-            var existsInAnyRole = await _context.ClassroomMembers
-        .AnyAsync(m => m.ClassroomId == classroomId && (m.LecturerId == userId || m.StudentId == userId));
+            var staffExists = await _context.DepartmentStaffs.AnyAsync(s => s.StaffId == memberUserId);
+            if (!staffExists)
+            {
+                throw new KeyNotFoundException($"The User ID '{memberUserId}' is not a valid Staff or Lecturer ID in the system.");
+            }
 
-            if (existsInAnyRole) return false; // Thành viên đã tồn tại -> không thêm lại
+            // 4. Kiểm tra thành viên đã tồn tại trong lớp
+            var exists = await _context.ClassroomMembers
+                .AnyAsync(m => m.ClassroomId == classroomId &&
+                               (m.LecturerId == memberUserId || m.StudentId == memberUserId));
+
+            if (exists) return false; // Trả về false nếu thành viên đã tồn tại
 
             var member = new ClassroomMember
             {
                 MemberId = Uuidv7Generator.NewUuid7().ToString(),
                 ClassroomId = classroomId,
                 RoleInClass = role,
-                LecturerId = isLecturer ? userId : null,
-                StudentId = isLecturer ? null : userId,
+                LecturerId = memberUserId,
+                StudentId = null,
             };
             await _context.ClassroomMembers.AddAsync(member);
             await _context.SaveChangesAsync();

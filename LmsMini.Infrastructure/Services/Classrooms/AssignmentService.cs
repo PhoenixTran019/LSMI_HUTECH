@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace LmsMini.Infrastructure.Services.Classrooms
 {
-    public class AssignmentService :IAssigmentService
+    public class AssignmentService : IAssigmentService
     {
         private readonly LmsDbContext _context;
         private readonly ILogger<AssignmentService> _logger;
@@ -62,11 +62,11 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
             if (dto.Files != null && dto.Files.Any())
             {
-                
+
 
                 foreach (var file in dto.Files)
                 {
-                    if (file == null|| file.Length == 0)
+                    if (file == null || file.Length == 0)
                         continue;
 
 
@@ -90,7 +90,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                     };
                     await _context.AssignmentFiles.AddAsync(assignmentFile);
 
-                    
+
                 }
             }
             await _context.ActivityLogs.AddAsync(new ActivityLog
@@ -149,7 +149,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
             var students = await _context.Students
                 .Where(s => studentIds.Contains(s.StudentId))
-                .ToDictionaryAsync(s => s.StudentId, s => s .FirstName + " " + s.LastName);
+                .ToDictionaryAsync(s => s.StudentId, s => s.FirstName + " " + s.LastName);
 
             var submissions = await _context.Submissions
                 .Where(sub => sub.AssignId == assigmentId && studentIds.Contains(sub.StudentId))
@@ -172,6 +172,9 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                     IsSubmitted = sub != null,
                     SubmittedAt = sub?.SubmitAt,
                     IsLate = sub != null && sub.SubmitAt > assignmentData.Deadline,
+                    Grade = sub?.Grade,
+                    FeedBack = sub?.FeedBack
+
                 };
             }).ToList();
 
@@ -190,6 +193,110 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
             return resultDto;
 
+        }
+
+        //==========SERVICE TO GET STUDENT'S LATEST SUBMISSION DETAIL==========
+        public async Task<GetSubmissionDetailDto> GetLatestSubmissionDetail(string assignemntId, string studentId)
+        {
+            //Take new assignment submit from student
+            var latestSubmission = await _context.Submissions
+                .Where(s => s.AssignId == assignemntId && s.StudentId == studentId)
+                .OrderByDescending(s => s.SubmitAt)
+                .FirstOrDefaultAsync();
+
+            if (latestSubmission == null)
+                return null;
+
+            //Take Assigment infor
+            var assignment = await _context.Assignments.FirstOrDefaultAsync(a => a.AssignId == assignemntId);
+            var student = await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId);
+
+            if (assignment == null || student == null)
+            {
+                _logger.LogWarning("Assignment {AssignmentId} or Student {StudentId} not found when fetching submission detail.", assignemntId, studentId);
+                return null;
+            }
+
+            //Take file from assignemt submit
+            var file = await _context.SubmitFiles
+                .Where(f => f.SubmitId == latestSubmission.SubmitId)
+                .Select(f => new AssigmentFileDto
+                {
+                    FileName = f.FileName,
+                    FilePath = f.FilePath,
+                    FileType = f.FileType
+                })
+                .ToListAsync();
+
+            //Map into DTO
+            var resultDtos = new GetSubmissionDetailDto
+            {
+                StudentID = student.StudentId,
+                FullName = student.LastName + " " + student.FirstName,
+                AssignmentID = assignment.AssignId,
+                AssginTitle = assignment.Title,
+                Deadline = assignment.Deadline,
+                SubmitAt = latestSubmission.SubmitAt,
+                SubmitType = latestSubmission.SubmitType,
+                Grade = latestSubmission.Grade,
+                FeedBack = latestSubmission.FeedBack,
+                SubmissionFile = file
+            };
+            return resultDtos;
+        }
+
+        public async Task<bool> GradeSubmissionAsync(string classroomId, string assignmentId, GradeSubmissionDto dto, string staffId)
+        {
+            //Check faculty privileges
+            var isLecturerOfClass = await _context.ClassroomMembers
+                .AnyAsync(cm => cm.ClassroomId == classroomId && cm.LecturerId == staffId && cm.RoleInClass != "Student");
+
+            if (!isLecturerOfClass)
+            {
+                _logger.LogWarning("Staff {StaffId} is not authorized to grade in classroom {ClassroomId}", staffId, classroomId);
+                return false;
+            }
+
+            //find Latest submit from student
+            var submission = await _context.Submissions
+                .Where(s => s.AssignId == assignmentId && s.StudentId == dto.StudentId)
+                .OrderByDescending(s => s.SubmitAt)
+                .FirstOrDefaultAsync();
+
+            if (submission == null)
+            {
+                _logger.LogWarning("Submission for assignment {AssignmentId} and student {StudentId} not found.", assignmentId, dto.StudentId);
+                return false;
+            }
+
+            // 3. Cập nhật điểm và phản hồi
+            submission.Grade = dto.Grade;
+            submission.FeedBack = dto.FeedBack?.Trim(); // Có thể null
+
+            _context.Submissions.Update(submission);
+
+            try
+            {
+                var log = new ActivityLog
+                {
+                    LogId = Uuidv7Generator.NewUuid7().ToString(),
+                    StaffId = staffId,
+                    Action = $"Grade Submission: {dto.Grade}",
+                    TargetId = submission.SubmitId,
+                    TargetTable = "Submissions",
+                    TargetName = $"Assign: {assignmentId}, Student: {dto.StudentId}",
+                    Timestap = DateTime.UtcNow
+                };
+                await _context.ActivityLogs.AddAsync(log);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error logging activity for grading submission {SubmissionId}", submission.SubmitId);
+            }
+
+            // 5. Lưu và trả về
+            await _context.SaveChangesAsync();
+            return true;
         }
 
 
@@ -213,7 +320,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 if (!string.IsNullOrWhiteSpace(dto.Title))
                     assigment.Title = dto.Title.Trim();
 
-                if(!string.IsNullOrWhiteSpace(dto.Description))
+                if (!string.IsNullOrWhiteSpace(dto.Description))
                     assigment.Description = dto.Description.Trim();
 
                 if (dto.Deadline.HasValue)
@@ -225,13 +332,13 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 if (!string.IsNullOrWhiteSpace(dto.HomeworkStatus))
                     assigment.HomeworkStatus = dto.HomeworkStatus.Trim();
 
-                var rootPath = Path.Combine(webRootPath,"uploads", "Assignments", assigment.ClassroomId, assigment.AssignId);
+                var rootPath = Path.Combine(webRootPath, "uploads", "Assignments", assigment.ClassroomId, assigment.AssignId);
                 Directory.CreateDirectory(rootPath);
 
                 var fileId = Uuidv7Generator.NewUuid7().ToString();
 
                 //===Add new file
-                if(dto.NewFiles != null)
+                if (dto.NewFiles != null)
                 {
                     foreach (var file in dto.NewFiles)
                     {
@@ -263,13 +370,13 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 }
 
                 // 4. Remove requested files
-                if(dto.RemoveFileId != null && dto.RemoveFileId.Any())
+                if (dto.RemoveFileId != null && dto.RemoveFileId.Any())
                 {
                     var removeList = assigment.AssignmentFiles
                         .Where(f => dto.RemoveFileId.Contains(f.FileId))
                         .ToList();
 
-                    foreach( var f in removeList)
+                    foreach (var f in removeList)
                     {
                         try
                         {
@@ -292,12 +399,12 @@ namespace LmsMini.Infrastructure.Services.Classrooms
                 try
                 {
                     var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.StaffId == staffId);
-                    
+
                     var log = new ActivityLog
                     {
                         LogId = Uuidv7Generator.NewUuid7().ToString(),
                         StaffId = staffId,
-                        
+
                         Action = "Update Assignment",
                         TargetId = assignmentId,
                         TargetTable = "Assignments",
@@ -345,41 +452,41 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             //==Delete Folder
             var rootPath = Path.Combine(_env.WebRootPath, "uploads", "Assignments", assignment.ClassroomId, assignment.AssignId);
 
-            if(Directory.Exists(rootPath))
+            if (Directory.Exists(rootPath))
                 Directory.Delete(rootPath, true);
 
             var files = _context.AssignmentFiles.Where(f => f.AssignId == assignmentId).ToList();
 
-                //===Delete DB records===
-                _context.AssignmentFiles.RemoveRange(files);
-                _context.Assignments.Remove(assignment);
+            //===Delete DB records===
+            _context.AssignmentFiles.RemoveRange(files);
+            _context.Assignments.Remove(assignment);
 
-                //===Log activity===
-                try
+            //===Log activity===
+            try
+            {
+                var log = new ActivityLog
                 {
-                    var log = new ActivityLog
-                    {
-                        LogId = Uuidv7Generator.NewUuid7().ToString(),
-                        StaffId = staffId,
-                        Action = "Delete Assignment",
-                        TargetId = assignmentId,
-                        TargetTable = "Assignments",
-                        TargetName = assignment.Title,
-                        Timestap = DateTime.UtcNow
-                    };
-                    await _context.ActivityLogs.AddAsync(log);
+                    LogId = Uuidv7Generator.NewUuid7().ToString(),
+                    StaffId = staffId,
+                    Action = "Delete Assignment",
+                    TargetId = assignmentId,
+                    TargetTable = "Assignments",
+                    TargetName = assignment.Title,
+                    Timestap = DateTime.UtcNow
+                };
+                await _context.ActivityLogs.AddAsync(log);
 
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error logging activity for assignment deletion {AssignmentId}", assignmentId);
-                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error logging activity for assignment deletion {AssignmentId}", assignmentId);
+            }
 
-                //===Save and commit===
-                await _context.SaveChangesAsync();
-                await tx.CommitAsync();
+            //===Save and commit===
+            await _context.SaveChangesAsync();
+            await tx.CommitAsync();
 
-                return true;
+            return true;
 
         }
     }

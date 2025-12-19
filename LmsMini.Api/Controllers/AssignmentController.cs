@@ -64,6 +64,50 @@ namespace LmsMini.Api.Controllers
             return Ok(assignmentDetail);
         }
 
+        //===========CONTROLLER TO GET ASSIGNMENT SUBMIT FORM STUDENT==========
+        [Authorize(Roles = "Staff, Lecturer, Admin")]
+        [HttpGet("{assignmentId}/submission/{studentId}/detail")]
+        public async Task<IActionResult> GetSubmissionDetail([FromRoute]string classroomId, [FromRoute]string assignmentId, [FromRoute]string studentId)
+        {
+            if (string.IsNullOrWhiteSpace(assignmentId) || string.IsNullOrWhiteSpace(studentId))
+            {
+                return BadRequest("Assignment ID and Student ID are required.");
+            }
+
+            var submissionDetail = await _assigment.GetLatestSubmissionDetail(assignmentId, studentId);
+
+            if (submissionDetail == null)
+            {
+                return NotFound(new { Message = "Doesn't find assignment or doesn't find assignment" });
+            }
+
+            return Ok(submissionDetail);
+        }
+
+        //==========CONTROLLER TO RATING AND FEEDBACK========== 
+        [Authorize(Roles ="Staff, Lecturer, Admin")]
+        [HttpPut("{assignmentId}/grade-submission")]
+        public async Task<IActionResult> GradeSubmission([FromRoute]string classroomId, [FromRoute]string assignmentId, [FromBody]GradeSubmissionDto dto)
+        {
+            var userId = User.Identity?.Name;
+
+            if (dto.Grade < 0 || dto.Grade > 100)
+            {
+                return BadRequest("The score must be between 0 and 100");
+            }
+
+            var ok = await _assigment.GradeSubmissionAsync(classroomId, assignmentId, dto, userId);
+
+            if (!ok)
+            {
+                return StatusCode(500, new
+                {
+                    Message = "Chấm điểm thất bại. Kiểm tra lại quyền hạn hoặc bài nộp/bài tập có tồn tại không."
+                });
+            }
+
+            return NoContent(); //send 204 if not update success.
+        }
 
         //===========UPDATE ASSIGNMENT ==============
         [Authorize(Roles = "Staff,Lecturer,Admin")]

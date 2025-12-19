@@ -13,8 +13,13 @@ namespace LmsMini.Application.Interfaces
 
         Task<StaffAssignmentDetailDto?> StaffGetAssignmentDetailAysnc(string classroomId, string assigmentId);
 
+        Task<bool> GradeSubmissionAsync(string classroomId, string assignmentId, GradeSubmissionDto dto, string staffId);
+
         Task<bool> UpdateAssignmentAsync(string classroomId,string assignmentId, UpdateAssignmentDto dto, string staffId, string webRootPath);
 
         Task<bool> DeleteAssignmentAsync(string classroomId,string assignmentId, string staffId, string webRootPath);
+
+        Task<GetSubmissionDetailDto> GetLatestSubmissionDetail(string assignemntId, string studentId);
+
     }
 }

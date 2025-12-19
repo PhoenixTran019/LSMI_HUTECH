@@ -30,11 +30,10 @@ namespace LmsMini.Api.Controllers
         [HttpPost("create-classroom")]
         public async Task<IActionResult> CreateClassroom([FromBody] CreateClassroomDto dto)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.Identity?.Name;
             var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == userId);
-            if (staff == null) return Forbid("The employee performing the task could not be identified.");
 
-            var success = await _classroomService.CreateClassroomAsync(dto, staff.StaffId);
+            var success = await _classroomService.CreateClassroomAsync(dto, userId);
             if (!success)
             {
                 return BadRequest("Classroom name is exist or incorrect database!");
@@ -48,7 +47,7 @@ namespace LmsMini.Api.Controllers
         [HttpGet("dashboard-classrooms")]
         public async Task<IActionResult> GetClassromDashboard([FromQuery] ClassroomFilterDto filter)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.Identity?.Name;
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
             if (string.IsNullOrEmpty(userId))
@@ -68,15 +67,40 @@ namespace LmsMini.Api.Controllers
         [HttpPost("{classroomId}/add-member")]
         public async Task<IActionResult> AddMember(string classroomId, [FromBody]AddMemberDto dto)
         {
-            if (!await IsCurrentUserClassTeacher(classroomId))
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId)) return Unauthorized("Cannot identify user from token.");
+
+            // 1. KIỂM TRA QUYỀN (Logic giữ lại tại Controller, như yêu cầu của bạn)
+            var isTeacher = await _context.ClassroomMembers
+                .AnyAsync(m => m.ClassroomId == classroomId &&
+                               m.LecturerId == currentUserId &&
+                               m.RoleInClass == "Teacher"); // Lỗi: Teacher phải là hằng số hoặc enum
+
+            if (!isTeacher) return Forbid("Only a teacher of this class can add members.");
+
+            // 2. Gọi Service và Xử lý lỗi chi tiết
+            try
             {
-                return Forbid("Only a teacher can add members to the class.");
+                var success = await _classroomService.AddMemberToClassroomAsync(classroomId, dto.UserId, dto.Role);
+
+                // Service trả về false chỉ khi thành viên đã tồn tại
+                return success ? Ok() : BadRequest($"User '{dto.UserId}' already exists in the classroom.");
             }
-
-            var success = await _classroomService.AddMemberToClassroomAsync(classroomId, dto.UserId, dto.Role);
-
-            // Gợi ý: Phân biệt lỗi để trả về thông báo rõ ràng hơn
-            return success ? Ok() : BadRequest("Failed to add member (e.g., User already exists or Classroom not found).");
+            catch (KeyNotFoundException ex)
+            {
+                // Lỗi 400 Bad Request: ID không hợp lệ hoặc Lớp không tồn tại
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Lỗi 400 Bad Request: Cố gắng thêm vai trò không được phép
+                return BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                // Lỗi 500: Lỗi không mong muốn khác
+                return StatusCode(500, "An unexpected internal error occurred during member addition.");
+            }
         }
 
         [Authorize]
@@ -138,7 +162,7 @@ namespace LmsMini.Api.Controllers
         [HttpPut("{classroomId}/Update-Classroom")]
         public async Task<IActionResult> UpdateClassroom(string classroomId, [FromBody] UpdateClassroomDto dto)
         {
-            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var staffId = User.Identity?.Name;
             if (string.IsNullOrEmpty(staffId))
                 return Unauthorized("Cannot identify staff from token.");
 

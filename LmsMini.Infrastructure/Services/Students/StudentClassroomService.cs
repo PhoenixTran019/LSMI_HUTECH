@@ -91,10 +91,8 @@ namespace LmsMini.Infrastructure.Services.Students
                     ClassName = c.ClassName ?? "",
                     ClassSub = c.ClassSubNavigation != null ? c.ClassSubNavigation.SubName : (c.ClassSub ?? ""),
                     MainClassName = c.MainClassNavigation != null ? c.MainClassNavigation.ClassName : (c.MainClass ?? ""),
-                    Course = c.MainClassNavigation != null ? c.MainClassNavigation.Course : "",
                     LecturerName = c.CreateByNavigation != null ? c.CreateByNavigation.FirstName : "",
-                    ClassStatus = c.ClassStatus ?? "",
-                    InviteCode = c.InviteCode ?? ""
+                    ClassStatus = c.ClassStatus ?? ""
                 })
                 .ToListAsync();
 

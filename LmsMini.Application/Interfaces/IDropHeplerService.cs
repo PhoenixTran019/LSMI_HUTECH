@@ -14,5 +14,7 @@ namespace LmsMini.Application.Interfaces
         Task<List<ClassSubjectDropDto>> GetClassSubjectDropDownAsync();
 
         Task<List<MainClassDropDto>> GetMainClassDropDownAsync();
+
+        Task<List<StaffInforDropDto>> GetStaffInforDorpAsync();
     }
 }

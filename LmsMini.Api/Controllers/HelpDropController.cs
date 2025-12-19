@@ -50,5 +50,16 @@ namespace LmsMini.Api.Controllers
 
             return Ok(mainClass);
         }
+
+        // Trong HelpDropController.cs
+
+        [Authorize(Roles = "Staff, Admin, Lecturer")]
+        [HttpGet("Staff")] // Endpoint sẽ là /api/Helper/Staff
+        public async Task<IActionResult> GetStaffDrop()
+        {
+            // Gọi hàm Service bạn đã viết
+            var staffList = await _dropHeplerService.GetStaffInforDorpAsync();
+            return Ok(staffList);
+        }
     }
 }
