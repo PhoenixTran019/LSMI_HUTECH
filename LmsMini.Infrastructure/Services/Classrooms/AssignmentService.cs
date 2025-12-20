@@ -300,6 +300,49 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             return true;
         }
 
+        //==========SERVICE TO UPDATE EXIST GRADE==========
+        public async Task<bool> UpdateExistingGradeAsync(string classroomId, string assignmentId, GradeSubmissionDto dto, string staffId)
+        {
+            // 1. Kiểm tra quyền giảng viên của lớp học
+            var isLecturerOfClass = await _context.ClassroomMembers
+                .AnyAsync(cm => cm.ClassroomId == classroomId && cm.StudentId == staffId && cm.RoleInClass != "Student");
+
+            if (!isLecturerOfClass)
+            {
+                _logger.LogWarning("Staff {StaffId} unauthorized update grade in {ClassroomId}", staffId, classroomId);
+                return false;
+            }
+
+            // 2. Tìm bài nộp ĐÃ CÓ ĐIỂM của sinh viên (Để phân biệt với chấm lần đầu)
+            var submission = await _context.Submissions
+                .Where(s => s.AssignId == assignmentId && s.StudentId == dto.StudentId && s.Grade != null)
+                .OrderByDescending(s => s.SubmitAt)
+                .FirstOrDefaultAsync();
+
+            if (submission == null) return false;
+
+            // 3. Lưu vết điểm cũ và cập nhật điểm mới
+            var oldGrade = submission.Grade;
+            submission.Grade = dto.Grade;
+            submission.FeedBack = dto.FeedBack?.Trim();
+
+            _context.Submissions.Update(submission);
+
+            // 4. Log hoạt động chấm lại
+            await _context.ActivityLogs.AddAsync(new ActivityLog
+            {
+                LogId = Uuidv7Generator.NewUuid7().ToString(),
+                StaffId = staffId,
+                Action = "Update Grade (Re-grade)",
+                TargetId = submission.SubmitId,
+                TargetTable = "Submissions",
+                TargetName = $"Assign: {assignmentId}, Student: {dto.StudentId}, Re-graded from {oldGrade} to {dto.Grade}",
+                Timestap = DateTime.UtcNow
+            });
+
+            return await _context.SaveChangesAsync() > 0;
+        }
+
         //==========SERVICE TO DOWNLOAND SUBMIT FILE==========
         public async Task<FileDownloadInfo?> GetSubmissionFileForTeacherAsync(string classroomId, string fileId)
         {

@@ -23,10 +23,11 @@ namespace LmsMini.Api.Controllers
         private readonly LmsDbContext _context;
         private readonly IWebHostEnvironment _env;
 
-        public StudentClassroomController(IStudentClassroomService studentClassroomService, LmsDbContext context)
+        public StudentClassroomController(IStudentClassroomService studentClassroomService, LmsDbContext context, IWebHostEnvironment env)
         {
             _studentClassroomService = studentClassroomService;
             _context = context;
+            _env = env;
         }
 
         //==========CONTROLLER TO STUDENT JOIN CLASSROOM==========

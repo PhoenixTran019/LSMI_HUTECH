@@ -109,6 +109,35 @@ namespace LmsMini.Api.Controllers
             return NoContent(); //send 204 if not update success.
         }
 
+        //========== CONTROLLER TO UPDATE EXISTING GRADE (CHẤM LẠI) ==========
+        [Authorize(Roles = "Staff, Lecturer, Admin")]
+        [HttpPatch("{assignmentId}/update-grade")] // URL: api/{classroomId}/Assignment/{assignmentId}/update-grade
+        public async Task<IActionResult> ReGradeSubmission([FromRoute] string classroomId, [FromRoute] string assignmentId, [FromBody] GradeSubmissionDto dto)
+        {
+            // 1. Lấy StaffId từ Identity Name (Username) như các hàm chấm điểm trước của bạn
+            var userId = User.Identity?.Name;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            // 2. Validate thang điểm (Thang 100 theo logic mới của bạn)
+            if (dto.Grade < 0 || dto.Grade > 100)
+            {
+                return BadRequest("The score must be between 0 and 100");
+            }
+
+            // 3. Gọi service xử lý cập nhật
+            var success = await _assigment.UpdateExistingGradeAsync(classroomId, assignmentId, dto, userId);
+
+            if (!success)
+            {
+                return StatusCode(400, new
+                {
+                    Message = "Cập nhật điểm thất bại. Vui lòng kiểm tra bài nộp đã có điểm trước đó chưa hoặc quyền hạn của bạn."
+                });
+            }
+
+            return NoContent(); // 204 Success
+        }
+
         [Authorize(Roles = "Staff, Lecturer, Admin")]
         [HttpGet("{assignmentId}/submissions/download-file/{fileId}")]
         public async Task<IActionResult> DownloadSubmissionFile(string classroomId, string fileId)
