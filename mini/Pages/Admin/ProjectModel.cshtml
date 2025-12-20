@@ -1,0 +1,228 @@
+﻿@page
+@model LmsMini.WebApp.Pages.Admin.ProjectModel
+@{
+    ViewData["Title"] = "Quản lý Dự án";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-4">
+    <div class="row align-items-center mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 fw-bold text-text-dark">Quản lý Dự án</h1>
+            <div class="dashboard-breadcrumbs">Quản lý • Danh sách Dự án</div>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <button class="btn btn-primary btn-modern" data-bs-toggle="modal" data-bs-target="#createProjectModal">
+                <i class="bi bi-plus-circle"></i> Tạo Dự án Mới
+            </button>
+        </div>
+    </div>
+
+    @* Hiển thị thông báo (TempData) *@
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger") alert-dismissible fade show" role="alert">
+            @Model.Message
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @* TODO: Bảng Danh sách Dự án (Project List) *@
+    <div class="card shadow-sm mt-3">
+        <div class="card-header bg-white body-bold border-bottom">
+            Danh sách Dự án (Mock Data)
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%">ID</th>
+                            <th style="width: 30%">Tiêu đề</th>
+                            <th style="width: 15%">Chuyên ngành</th>
+                            <th style="width: 10%">SV Tối đa</th>
+                            <th style="width: 15%">Trạng thái</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @* Đây là dữ liệu mock, bạn cần thay thế bằng Model.Projects *@
+                        <tr>
+                            <td>PRO001</td>
+                            <td>Thiết kế hệ thống LMS</td>
+                            <td>CNTT</td>
+                            <td>5</td>
+                            <td><span class="badge bg-warning">Chờ Staff Duyệt</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info" title="Xem chi tiết"><i class="bi bi-eye"></i></button>
+                                <button class="btn btn-sm btn-outline-success" title="Phê duyệt" data-bs-toggle="modal" data-bs-target="#approveProjectModal"><i class="bi bi-check-circle"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>PRO002</td>
+                            <td>Nghiên cứu AI Chatbot</td>
+                            <td>Điện tử</td>
+                            <td>3</td>
+                            <td><span class="badge bg-success">Đã duyệt (Leader)</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info" title="Xem chi tiết"><i class="bi bi-eye"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* ========================================================= *@
+    @* MODAL TẠO DỰ ÁN MỚI *@
+    @* ========================================================= *@
+    <div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="CreateProject">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="createProjectModalLabel">Tạo Dự án Mới</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="CreateProjectInput.Title" class="form-label"></label>
+                            <input asp-for="CreateProjectInput.Title" class="form-control" />
+                            <span asp-validation-for="CreateProjectInput.Title" class="text-danger"></span>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="CreateProjectInput.ProMajor" class="form-label"></label>
+                                <select asp-for="CreateProjectInput.ProMajor" class="form-select" asp-items="Model.MajorOptions">
+                                    <option value="">-- Chọn Chuyên ngành --</option>
+                                </select>
+                                <span asp-validation-for="CreateProjectInput.ProMajor" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="CreateProjectInput.Cohort" class="form-label"></label>
+                                <input asp-for="CreateProjectInput.Cohort" class="form-control" placeholder="Ví dụ: K17" />
+                                <span asp-validation-for="CreateProjectInput.Cohort" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="CreateProjectInput.MaxStudents" class="form-label"></label>
+                                <input asp-for="CreateProjectInput.MaxStudents" type="number" class="form-control" min="1" max="10" />
+                                <span asp-validation-for="CreateProjectInput.MaxStudents" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="CreateProjectInput.StartDate" class="form-label"></label>
+                                @* Giả định bạn có thể sử dụng type="date" hoặc một DatePicker JS *@
+                                <input asp-for="CreateProjectInput.StartDate" type="date" class="form-control" />
+                                <span asp-validation-for="CreateProjectInput.StartDate" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="CreateProjectInput.EndDate" class="form-label"></label>
+                                <input asp-for="CreateProjectInput.EndDate" type="date" class="form-control" />
+                                <span asp-validation-for="CreateProjectInput.EndDate" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="CreateProjectInput.Description" class="form-label"></label>
+                            <textarea asp-for="CreateProjectInput.Description" class="form-control" rows="5"></textarea>
+                            <span asp-validation-for="CreateProjectInput.Description" class="text-danger"></span>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Tạo Dự án</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @* ========================================================= *@
+    @* MODAL PHÊ DUYỆT (Dùng chung cho Staff và Leader) *@
+    @* ========================================================= *@
+    <div class="modal fade" id="approveProjectModal" tabindex="-1" aria-labelledby="approveProjectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="approveProjectModalLabel">Phê duyệt Dự án</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger">**Lưu ý:** Chỉ sử dụng một trong hai nút "Staff Duyệt" hoặc "Leader Duyệt".</p>
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+                    @* Form này sẽ được điền dữ liệu bằng JS khi nhấn nút Phê duyệt trên bảng *@
+                    <form method="post" id="approvalForm">
+                        <input type="hidden" asp-for="ApprovalInput.AssignID" id="inputAssignId" />
+                        <input type="hidden" asp-for="ApprovalInput.Decicion" value="Approve" /> @* Giá trị cứng cho Phê duyệt *@
+
+                        <div class="mb-3">
+                            <label asp-for="ApprovalInput.LecturerID" class="form-label">Phân công Giảng viên (Tùy chọn)</label>
+                            <input asp-for="ApprovalInput.LecturerID" class="form-control" placeholder="ID Giảng viên (nếu cần phân công)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ApprovalInput.Comments" class="form-label">Bình luận/Lý do</label>
+                            <textarea asp-for="ApprovalInput.Comments" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <div class="modal-footer d-flex justify-content-between">
+                            @* Nút Staff Duyệt *@
+                            <button type="submit" asp-page-handler="StaffApprove" class="btn btn-success me-2">Staff Duyệt</button>
+
+                            @* Nút Leader Duyệt *@
+                            <button type="submit" asp-page-handler="LeaderApprove" class="btn btn-primary">Leader Duyệt</button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // Script để xử lý việc hiển thị modal Approve (cần thiết nếu dữ liệu đến từ bảng)
+        document.addEventListener('DOMContentLoaded', function () {
+            var approveModal = document.getElementById('approveProjectModal');
+
+            // Lắng nghe sự kiện khi modal hiện ra
+            approveModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget; // Nút đã trigger modal
+
+                // Lấy Project ID từ data attribute của nút trong bảng (Ví dụ: data-project-id="PRO001")
+                var projectId = button.getAttribute('data-project-id');
+
+                // Gán Project ID vào input ẩn trong form
+                var modalInputId = approveModal.querySelector('#inputAssignId');
+                if (modalInputId && projectId) {
+                    modalInputId.value = projectId;
+                } else if (modalInputId) {
+                    // Nếu không lấy được ID, đặt ID mặc định hoặc cảnh báo
+                    modalInputId.value = 'PRO001';
+                }
+            });
+
+            // Script để hiển thị lại modal nếu form lỗi (sau khi RedirectToPage thất bại)
+            var showProjectModal = '@(TempData["ShowCreateProjectModal"] ?? "")';
+            if (showProjectModal === 'true') {
+                var myModal = new bootstrap.Modal(document.getElementById('createProjectModal'));
+                myModal.show();
+            }
+        });
+    </script>
+}

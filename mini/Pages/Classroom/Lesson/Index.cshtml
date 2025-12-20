@@ -1,0 +1,89 @@
+﻿@page "/Classroom/{ClassroomId}/Lessons/{LessonId?}"
+@model LmsMini.WebApp.Pages.Classroom.Lesson.ClassroomLessonModel
+@{
+    ViewData["Title"] = Model.IsEditMode ? $"Chi tiết Bài học: {Model.LessonDetail?.Title}" : "Tạo Bài học mới";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Quản lý Bài học lớp: @Model.ClassName</h1>
+
+            @if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger") alert-dismissible fade show" role="alert">
+                    @Model.Message
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @if (Model.IsEditMode && Model.LessonDetail != null)
+            {
+                <h2>Chi tiết Bài học: @Model.LessonDetail.Title</h2>
+
+                <div class="card p-4 mb-4">
+                    <p><strong>Nội dung:</strong> @Html.Raw(Model.LessonDetail.Content)</p>
+                    <h4>Tài liệu đính kèm:</h4>
+                    @* <ul>
+                        @foreach (var file in Model.LessonDetail.Files)
+                        {
+                            <li>
+                                <a href="@file.FilePath" target="_blank">@file.FileName</a> (@file.FileType)
+                            </li>
+                        }
+                    </ul> *@
+
+                    <button class="btn btn-warning mt-3" data-bs-toggle="modal" data-bs-target="#editLessonModal">Sửa Bài học</button>
+
+                    <form method="post" asp-page-handler="Delete" onsubmit="return confirm('Bạn có chắc muốn xóa bài học này?');">
+                        <input type="hidden" name="ClassroomId" value="@Model.ClassroomId" />
+                        <input type="hidden" name="LessonId" value="@Model.LessonId" />
+                        <button type="submit" class="btn btn-danger mt-2">Xóa Bài học</button>
+                    </form>
+                </div>
+
+                @* --- Modal Edit Lesson --- *@
+                @await Html.PartialAsync("_EditLessonModal", Model)
+
+            }
+            else
+            {
+                <h2>Tạo Bài học Mới</h2>
+
+                <div class="card p-4">
+                    <form method="post" asp-page-handler="Create" enctype="multipart/form-data">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="CreateInput.LessonTitle" class="form-label"></label>
+                            <input asp-for="CreateInput.LessonTitle" class="form-control" required />
+                            <span asp-validation-for="CreateInput.LessonTitle" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="CreateInput.Content" class="form-label"></label>
+                            <textarea asp-for="CreateInput.Content" class="form-control" rows="5"></textarea>
+                            <span asp-validation-for="CreateInput.Content" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="CreateInput.Files" class="form-label"></label>
+                            <input asp-for="CreateInput.Files" type="file" multiple class="form-control" />
+                        </div>
+
+                        <input type="hidden" asp-for="ClassroomId" />
+                        <button type="submit" class="btn btn-primary">Tạo Bài học</button>
+                    </form>
+                </div>
+
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

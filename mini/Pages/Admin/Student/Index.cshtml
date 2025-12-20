@@ -1,0 +1,174 @@
+﻿@page
+@model LmsMini.WebApp.Pages.Admin.Student.IndexModel
+@{
+    ViewData["Title"] = "Quản lý Sinh viên";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-4">
+    <div class="row align-items-center mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 fw-bold text-text-dark">Quản lý Sinh viên</h1>
+            <div class="dashboard-breadcrumbs">Quản lý • Danh sách Sinh viên</div>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <!-- ❌ KHÔNG asp-page -->
+            <button class="btn btn-primary btn-modern"
+                    data-bs-toggle="modal"
+                    data-bs-target="#createStudentModal">
+                <i class="bi bi-person-plus"></i> Tạo Sinh viên
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger") alert-dismissible fade show">
+            @Model.Message
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white body-bold border-bottom">
+            Danh sách Sinh viên (@Model.Students.Count)
+        </div>
+        <div class="card-body p-0">
+            @if (Model.Students.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Mã SV</th>
+                                <th>Họ Tên</th>
+                                <th>Lớp</th>
+                                <th>Chuyên ngành</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var student in Model.Students)
+                            {
+                                <tr>
+                                    <td>@student.StudentId</td>
+                                    <td>@student.FullName</td>
+                                    <td>@student.ClassName</td>
+                                    <td>@student.MajorName</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></button>
+                                        <button class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info m-3">
+                    Không tìm thấy sinh viên nào trong hệ thống.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL CREATE STUDENT ================= -->
+<div class="modal fade" id="createStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+
+            <form method="post" asp-page-handler="CreateStudent">
+                <div class="modal-header">
+                    <h5 class="modal-title">Tạo Sinh viên</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <!-- ✅ Hiển thị lỗi validate -->
+                    <div asp-validation-summary="All" class="text-danger mb-2"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Mã SV</label>
+                            <input asp-for="NewStudent.StudentID" class="form-control" />
+                            <span asp-validation-for="NewStudent.StudentID" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input asp-for="NewStudent.Email" class="form-control" />
+                            <span asp-validation-for="NewStudent.Email" class="text-danger"></span>
+                        </div>
+
+                        <!-- ✅ BẮT BUỘC: FirstName / LastName (vì DTO bạn Required) -->
+                        <div class="col-md-6">
+                            <label class="form-label">Họ</label>
+                            <input asp-for="NewStudent.FirstName" class="form-control" />
+                            <span asp-validation-for="NewStudent.FirstName" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Tên</label>
+                            <input asp-for="NewStudent.LastName" class="form-control" />
+                            <span asp-validation-for="NewStudent.LastName" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Lớp</label>
+                            <select asp-for="NewStudent.ClassID" asp-items="Model.Classes" class="form-select">
+                                <option value="">-- Chọn lớp --</option>
+                            </select>
+                            <span asp-validation-for="NewStudent.ClassID" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Khoa</label>
+                            <select asp-for="NewStudent.DepartID" asp-items="Model.Departments" class="form-select">
+                                <option value="">-- Chọn khoa --</option>
+                            </select>
+                            <span asp-validation-for="NewStudent.DepartID" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Chuyên ngành</label>
+                            <select asp-for="NewStudent.StuMajor" asp-items="Model.Majors" class="form-select">
+                                <option value="">-- Chọn ngành --</option>
+                            </select>
+                            <span asp-validation-for="NewStudent.StuMajor" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Mật khẩu</label>
+                            <input asp-for="NewStudent.Password" type="password" class="form-control" />
+                            <span asp-validation-for="NewStudent.Password" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Tạo Sinh viên</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <!-- ✅ Nếu form lỗi thì tự mở lại modal để thấy lỗi -->
+    @if (TempData["ShowCreateStudentModal"]?.ToString() == "true")
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var el = document.getElementById('createStudentModal');
+                if (el) new bootstrap.Modal(el).show();
+            });
+        </script>
+    }
+}

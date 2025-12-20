@@ -1,0 +1,102 @@
+﻿@page "/Admin/Courses"
+@model LmsMini.WebApp.Pages.Admin.Course.CourseIndexModel
+@{
+    ViewData["Title"] = "Quản lý Khóa học";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-4">
+    <div class="row align-items-center mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 fw-bold text-dark">Quản lý Khóa học</h1>
+            <div class="dashboard-breadcrumbs">Quản lý • Danh sách Khóa học</div>
+        </div>
+        <div class="col-md-4 text-md-end">
+            @* TODO: Nút tạo khóa học mới nếu cần *@
+            <button class="btn btn-primary btn-modern" disabled>
+                <i class="bi bi-plus-circle"></i> Tạo Khóa học Mới
+            </button>
+        </div>
+    </div>
+
+    @* HIỂN THỊ CHI TIẾT KHÓA HỌC ĐƯỢC CHỌN (NẾU CÓ) *@
+    @if (Model.SelectedCourseDetail != null)
+    {
+        <div class="card shadow-sm mb-4 border-info">
+            <div class="card-header bg-info text-white fw-bold">
+                Chi tiết Khóa học: @Model.SelectedCourseDetail.Title
+                <a asp-page="/Admin/Course/Index" class="float-end text-white text-decoration-none">
+                    <i class="bi bi-x-circle"></i> Đóng chi tiết
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Mã Khóa học:</strong> @Model.SelectedCourseDetail.Code</p>
+                        <p><strong>ID Khóa học:</strong> @Model.SelectedCourseDetail.Id</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Trạng thái:</strong> <span class="badge bg-secondary">@Model.SelectedCourseDetail.Status</span></p>
+                        <p><strong>Ngày tạo:</strong> @Model.SelectedCourseDetail.CreatedAt.ToString("dd/MM/yyyy")</p>
+                    </div>
+                </div>
+                <hr />
+                <h5>Mô tả:</h5>
+                <p>@Model.SelectedCourseDetail.Description</p>
+
+                @* TODO: Thêm nút Edit nếu có quyền *@
+                <button class="btn btn-warning mt-2" disabled>Chỉnh sửa</button>
+            </div>
+        </div>
+    }
+
+
+    @* BẢNG DANH SÁCH KHÓA HỌC *@
+    <div class="card shadow-sm mt-3">
+        <div class="card-header bg-white fw-bold border-bottom">
+            Danh sách Khóa học (@Model.Courses.Count)
+        </div>
+        <div class="card-body p-0">
+            @if (Model.Courses.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%">Mã Khóa học</th>
+                                <th style="width: 40%">Tiêu đề</th>
+                                <th style="width: 15%">Trạng thái</th>
+                                <th style="width: 15%">Ngày tạo</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var course in Model.Courses)
+                            {
+                                <tr>
+                                    <td>@course.Code</td>
+                                    <td>@course.Title</td>
+                                    <td><span class="badge bg-success">@course.Status</span></td>
+                                    <td>@course.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        <a asp-page="/Admin/Course/Index" asp-route-id="@course.Id" class="btn btn-sm btn-outline-info" title="Xem chi tiết">
+                                            <i class="bi bi-eye"></i> Xem
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="p-3 text-center text-muted">Hiện tại không có Khóa học nào được tìm thấy.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @* Có thể thêm scripts cho phân trang/lọc nếu cần *@
+}

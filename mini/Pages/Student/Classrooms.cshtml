@@ -1,0 +1,51 @@
+﻿@page "/student/classrooms"
+@model LmsMini.WebApp.Pages.Student.ClassroomsModel
+@{
+    ViewData["Title"] = "Danh sách Lớp học";
+}
+
+<div class="container-fluid pt-4 fade-up">
+    <div class="dashboard-top mb-4">
+        <h1 class="fw-bold mb-0">Lớp học của bạn</h1>
+        <a asp-page="/Student/JoinClassroom" class="btn btn-success btn-modern shadow-medium">
+            <i class="fas fa-plus-circle me-2"></i>
+            Tham gia Lớp học
+        </a>
+    </div>
+
+
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-warning">@Model.Message</div>
+    }
+
+    @if (Model.Classrooms.Any())
+    {
+        <div class="row mt-4">
+            @foreach (var classroom in Model.Classrooms)
+            {
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card class-list-card h-100 shadow-sm">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">@classroom.ClassName</h5>
+                            <p class="card-text flex-grow-1">
+                                <span class="body-bold">Môn học:</span> @classroom.SubjectName<br />
+                                <span class="body-bold">Giảng viên:</span> @classroom.LecturerName<br />
+                                <span class="body-bold">Bài tập chờ:</span> <span class="text-danger">@classroom.TotalAssignments</span>
+                            </p>
+                            <a asp-page="/Student/ClassDetails" asp-route-id="@classroom.ClassroomId" class="btn btn-sm btn-primary mt-auto btn-modern">
+                                <i class="fas fa-door-open me-2"></i> Vào lớp
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info border-0 shadow-sm mt-4">
+            <i class="fas fa-info-circle me-2"></i> Bạn chưa tham gia lớp học nào.
+        </div>
+    }
+</div>

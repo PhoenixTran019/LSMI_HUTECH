@@ -1,0 +1,97 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - DbLMS</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1xOofF0kXbWf+Ld0R37zO+p2Gz0XjU5j/K0B0z2R6+vJ4J/M9T1tT4Lq2n5D5+fQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/mini.styles.css" asp-append-version="true" />
+</head>
+<body>
+
+    <div class="d-flex min-vh-100">
+
+        <div class="sidebar d-none d-md-flex flex-column">
+
+            <div class="sidebar-header">
+                <h3 class="text-primary-default mb-0 fw-bold">DbLMS <span class="badge bg-primary-dark">2.0</span></h3>
+                <p class="caption mb-0">Learning Management System</p>
+            </div>
+
+            <div class="user-profile text-center mb-4 pt-3 pb-3 border-bottom-0 shadow-sm rounded-lg"
+                 style="border: 1px solid var(--border-color); background: var(--bg-light);">
+                <img src="https://via.placeholder.com/60" alt="User Avatar" class="rounded-circle mb-2" width="60" height="60">
+                <h5 class="body-bold mb-0">Tên Người Dùng</h5>
+                <p class="body-small text-text-light mb-0">Vai trò/Chức vụ</p>
+            </div>
+
+            <nav class="nav flex-column flex-grow-1">
+                <a class="sidebar-nav-item active" asp-page="/Index">
+                    <i class="fas fa-desktop icon"></i> <span>Dashboard</span>
+                </a>
+                <a class="sidebar-nav-item" asp-page="/Courses">
+                    <i class="fas fa-book icon"></i> <span>Quản lý Khóa học</span>
+                </a>
+                <a class="sidebar-nav-item" asp-page="/Projects">
+                    <i class="fas fa-rocket icon"></i> <span>Dự án & Bài tập</span>
+                </a>
+                <a class="sidebar-nav-item" asp-page="/Internships">
+                    <i class="fas fa-graduation-cap icon"></i> <span>Thực tập & Tuyển dụng</span>
+                </a>
+                <a class="sidebar-nav-item" asp-page="/Settings">
+                    <i class="fas fa-cog icon"></i> <span>Cài đặt</span>
+                </a>
+
+                <a class="sidebar-nav-item mt-auto border-top pt-3" asp-page="/Account/Logout" style="color: var(--accent-red) !important;">
+                    <i class="fas fa-sign-out-alt icon"></i> <span>Đăng xuất</span>
+                </a>
+            </nav>
+        </div>
+        <div class="main-content-wrapper flex-grow-1">
+
+            <header class="main-header shadow-light">
+                <h2 class="h3 mb-0 text-text-medium fw-semibold">@ViewData["Title"]</h2>
+                <div class="d-flex align-items-center">
+                    <div class="icon-group">
+                        <i class="fas fa-search icon" title="Tìm kiếm"></i>
+                        <div style="position: relative;">
+                            <i class="fas fa-bell icon" title="Thông báo"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">3</span>
+                        </div>
+                    </div>
+                    <img src="https://via.placeholder.com/40" alt="User Avatar" class="user-avatar ms-3 shadow-sm">
+                </div>
+            </header>
+            <main role="main" class="pb-3">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Kích hoạt hiệu ứng fade-up
+            document.querySelectorAll('.fade-up').forEach(el => {
+                // Đọc transition-delay từ style attribute (ví dụ: style="transition-delay: 500ms;")
+                const delayMatch = el.getAttribute('style')?.match(/transition-delay:\s*(\d+)ms/);
+                const delay = delayMatch ? parseInt(delayMatch[1]) : 0;
+
+                // Sử dụng setTimeout để đảm bảo hiệu ứng chạy tuần tự
+                setTimeout(() => el.classList.add('in'), delay);
+            });
+        });
+    </script>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

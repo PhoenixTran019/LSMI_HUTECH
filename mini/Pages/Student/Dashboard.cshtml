@@ -1,0 +1,158 @@
+﻿@page "/student/dashboard"
+@model LmsMini.WebApp.Pages.Student.DashboardModel
+@{
+    ViewData["Title"] = "Tổng quan Sinh viên";
+    Layout = "_Layout"; // Sử dụng layout chung
+}
+
+<div class="container-fluid pt-2">
+
+    <div class="dashboard-top mb-4 fade-up" style="transition-delay: 100ms;">
+        <div class="d-flex flex-column">
+            <h1 class="mb-1 fw-bold text-primary-default">Xin chào, @Model.DashboardData.FullName!</h1>
+            <p class="caption mb-0">Mã số sinh viên: <strong>@Model.DashboardData.StudentId</strong></p>
+        </div>
+
+        <a asp-page="/Student/JoinClassroom" class="btn btn-success btn-modern shadow-medium">
+            <i class="fas fa-plus-circle me-2"></i>
+            Tham gia Lớp học
+        </a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-warning alert-dismissible fade show fade-up" role="alert" style="transition-delay: 200ms;">
+            <i class="fas fa-exclamation-triangle me-2"></i> @Model.Message
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row">
+
+        <div class="col-xl-4 col-md-6 mb-4 fade-up" style="transition-delay: 300ms;">
+            <div class="card dashboard-card shadow-medium h-100 py-3" data-color="info">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1 body-small">
+                                TỔNG SỐ LỚP HỌC
+                            </div>
+                            <div class="stat-value text-info">
+                                @Model.DashboardData.TotalClassrooms
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chalkboard fa-3x text-info opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6 mb-4 fade-up" style="transition-delay: 400ms;">
+            <div class="card dashboard-card shadow-medium h-100 py-3" data-color="warning">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1 body-small">
+                                BÀI TẬP SẮP HẾT HẠN
+                            </div>
+                            <div class="stat-value text-warning">
+                                @Model.DashboardData.PendingAssignments
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-alt fa-3x text-warning opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6 mb-4 fade-up" style="transition-delay: 500ms;">
+            <div class="card dashboard-card shadow-medium h-100 py-3" data-color="success">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1 body-small">
+                                DỰ ÁN ĐANG TIẾN HÀNH
+                            </div>
+                            <div class="stat-value text-success">
+                                2
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-project-diagram fa-3x text-success opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-lg-6 fade-up" style="transition-delay: 600ms;">
+            <div class="card chart-card shadow-medium mb-4">
+                <div class="card-header py-3 bg-white border-bottom-0">
+                    <h6 class="m-0 font-weight-bold text-primary-default">
+                        <i class="fas fa-history me-2"></i> Hoạt động gần nhất
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-text-medium">Cập nhật nhanh các hoạt động quan trọng trong lớp học.</p>
+                    <div class="activity-log">
+                        <div class="list-group">
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-bullhorn text-primary-default me-2"></i> Thông báo mới từ [MATH101]: Lịch thi giữa kỳ.</span>
+                                <small class="text-muted">1 giờ trước</small>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-book-open text-primary-default me-2"></i> [CS101] Bài giảng mới: Lập trình hướng đối tượng</span>
+                                <small class="text-muted">4 giờ trước</small>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-check-circle text-success me-2"></i> Bài nộp [WEBDEV] được chấm điểm.</span>
+                                <small class="text-muted">Hôm qua</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end mt-3">
+                        <a asp-page="/Student/Classrooms" class="text-primary-default body-bold body-small">Xem tất cả Lớp học <i class="fas fa-arrow-right body-small"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 fade-up" style="transition-delay: 700ms;">
+            <div class="card chart-card shadow-medium mb-4">
+                <div class="card-header py-3 bg-white border-bottom-0">
+                    <h6 class="m-0 font-weight-bold text-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i> Bài tập Cần xử lý
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-text-medium">Danh sách các bài tập sắp hết hạn và chưa nộp.</p>
+                    <div class="activity-log">
+                        <div class="list-group">
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-clock text-danger me-2"></i> [WEBDEV] Bài nộp Thiết kế giao diện</span>
+                                <small class="text-danger body-bold">Hạn: 2 ngày</small>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-clock text-warning me-2"></i> [ALGO] Bài tập 3: Sắp xếp động</span>
+                                <small class="text-warning body-bold">Hạn: 4 ngày</small>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-hourglass-half text-warning me-2"></i> [OOP] Bài tập Đa hình (Chưa nộp)</span>
+                                <small class="text-warning body-bold">Hạn: 1 tuần</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end mt-3">
+                        <a asp-page="/Student/Assignments" class="text-primary-default body-bold body-small">Xem tất cả Bài tập <i class="fas fa-arrow-right body-small"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

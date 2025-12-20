@@ -1,0 +1,366 @@
+﻿@page
+@model LmsMini.WebApp.Pages.Admin.DashboardModel
+@{
+    ViewData["Title"] = "Tổng quan Quản trị";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-4">
+
+    <!-- ===== HEADER ===== -->
+    <div class="row align-items-center mb-3">
+        <div class="col-md-8">
+            <h1 class="h3 fw-bold mb-1">
+                Chào mừng, @User.Identity?.Name!
+            </h1>
+            <div class="dashboard-breadcrumbs">
+                Bảng điều khiển • Tổng quan hệ thống
+            </div>
+        </div>
+
+        <div class="col-md-4 d-flex justify-content-end align-items-center gap-2">
+            <img src="~/images/avatar-default.jpg"
+                 class="rounded-circle border"
+                 width="44" height="44"
+                 alt="Avatar" />
+        </div>
+    </div>
+
+    <!-- ===== QUICK ACTION BUTTONS ===== -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+
+        <button class="btn btn-primary"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#createStudentModal">
+            <i class="bi bi-person-plus me-1"></i>
+            Tạo Sinh viên
+        </button>
+
+        <button class="btn btn-success"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#createClassroomModal">
+            <i class="bi bi-plus-circle me-1"></i>
+            Tạo Classroom
+        </button>
+
+        <a asp-page="/Admin/Project" class="btn btn-warning">
+            <i class="bi bi-code-slash me-1"></i>
+            Tạo Dự án
+        </a>
+
+    </div>
+
+    <!-- ===== ALERT ===== -->
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger") alert-dismissible fade show">
+            @Model.Message
+            <button class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- ===== KPI ===== -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card p-3">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-muted">Khóa học</div>
+                        <div class="fs-4 fw-bold">@Model.CoursesCount</div>
+                    </div>
+                    <i class="bi bi-book fs-2 text-primary"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card p-3">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-muted">Sinh viên</div>
+                        <div class="fs-4 fw-bold">@Model.StudentsCount</div>
+                    </div>
+                    <i class="bi bi-people fs-2 text-success"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card p-3">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-muted">Giảng viên</div>
+                        <div class="fs-4 fw-bold">@Model.StaffCount</div>
+                    </div>
+                    <i class="bi bi-person-badge fs-2 text-warning"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card p-3">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-muted">Dự án</div>
+                        <div class="fs-4 fw-bold">@Model.ProjectsCount</div>
+                    </div>
+                    <i class="bi bi-code-square fs-2 text-info"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CHART ===== -->
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header fw-bold bg-white">
+                    Thống kê đăng ký (7 ngày)
+                </div>
+                <div class="card-body">
+                    <canvas id="registrationsChart" height="110"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header fw-bold bg-white">
+                    Hoạt động gần đây
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var a in Model.RecentActivities)
+                        {
+                            <li class="mb-2">
+                                <strong>@a.Message</strong><br />
+                                <small class="text-muted">@a.TimeAgo</small>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================= -->
+<!-- ===================== MODALS ==================== -->
+<!-- ================================================= -->
+<!-- CREATE CLASSROOM -->
+<div class="modal fade" id="createClassroomModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="CreateClassroom">
+                @Html.AntiForgeryToken()
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Tạo Classroom</h5>
+                    <button class="btn-close" type="button" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div asp-validation-summary="All" class="text-danger mb-2"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tên lớp</label>
+                        <input asp-for="CreateClassroomInput.ClassName" class="form-control" />
+                        <span asp-validation-for="CreateClassroomInput.ClassName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Môn</label>
+
+                        <input asp-for="CreateClassroomInput.ClassSub"
+                               class="form-control"
+                               list="subjectNameList"
+                               placeholder="VD: IT Project Management" />
+
+                        <datalist id="subjectNameList">
+                            @foreach (var s in Model.SubjectOptions.Where(x => !string.IsNullOrWhiteSpace(x.Value)))
+                            {
+                                <option value="@s.Value"></option>
+                            }
+                        </datalist>
+
+                        <span asp-validation-for="CreateClassroomInput.ClassSub" class="text-danger"></span>
+                    </div>
+
+
+
+                    <div class="mb-3">
+                        <label class="form-label">Lớp chính</label>
+                        <select asp-for="CreateClassroomInput.MainClass"
+                                asp-items="Model.ClassOptions"
+                                class="form-select">
+                            <option value="">-- Chọn lớp --</option>
+                        </select>
+                        <span asp-validation-for="CreateClassroomInput.MainClass" class="text-danger"></span>
+                    </div>
+
+                    <!-- ✅ FIX: CreateForm.InviteCode -> CreateClassroomInput.InviteCode -->
+                    <div class="mb-3">
+                        <label class="form-label">Invite Code</label>
+                        <input asp-for="CreateClassroomInput.InviteCode" class="form-control" />
+                        <span asp-validation-for="CreateClassroomInput.InviteCode" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Mô tả</label>
+                        <textarea asp-for="CreateClassroomInput.Description"
+                                  class="form-control"
+                                  rows="3"
+                                  placeholder="Nhập mô tả lớp..."></textarea>
+                        <span asp-validation-for="CreateClassroomInput.Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Trạng thái</label>
+                        <select asp-for="CreateClassroomInput.ClassStatus" class="form-select">
+                            <option value="Inactive">Inactive</option>
+                            <option value="Active">Active</option>
+                        </select>
+                        <span asp-validation-for="CreateClassroomInput.ClassStatus" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-primary" type="submit">Tạo</button>
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- CREATE STUDENT -->
+<div class="modal fade" id="createStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="CreateStudent">
+                @Html.AntiForgeryToken()
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Tạo Sinh viên</h5>
+                    <button class="btn-close" type="button" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div asp-validation-summary="All" class="text-danger mb-2"></div>
+
+                    <div class="row g-2">
+
+                        <div class="col-md-6">
+                            <label class="form-label">Mã SV</label>
+                            <input asp-for="CreateStudentInput.StudentID" class="form-control" />
+                            <span asp-validation-for="CreateStudentInput.StudentID" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Mật khẩu</label>
+                            <input asp-for="CreateStudentInput.Password" type="password" class="form-control" />
+                            <span asp-validation-for="CreateStudentInput.Password" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Họ</label>
+                            <input asp-for="CreateStudentInput.FirstName" class="form-control" />
+                            <span asp-validation-for="CreateStudentInput.FirstName" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Tên</label>
+                            <input asp-for="CreateStudentInput.LastName" class="form-control" />
+                            <span asp-validation-for="CreateStudentInput.LastName" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Khoa</label>
+                            <select asp-for="CreateStudentInput.DepartID"
+                                    asp-items="Model.DepartmentOptions"
+                                    class="form-select">
+                                <option value="">-- Chọn khoa --</option>
+                            </select>
+                            <span asp-validation-for="CreateStudentInput.DepartID" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Chuyên ngành</label>
+                            <select asp-for="CreateStudentInput.StuMajor"
+                                    asp-items="Model.MajorOptions"
+                                    class="form-select">
+                                <option value="">-- Chọn chuyên ngành --</option>
+                            </select>
+                            <span asp-validation-for="CreateStudentInput.StuMajor" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label">Lớp</label>
+                            <select asp-for="CreateStudentInput.ClassID"
+                                    asp-items="Model.ClassOptions"
+                                    class="form-select">
+                                <option value="">-- Chọn lớp --</option>
+                            </select>
+                            <span asp-validation-for="CreateStudentInput.ClassID" class="text-danger"></span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-primary" type="submit">Tạo Sinh viên</button>
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        const labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ChartLabels));
+        const values = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ChartValues));
+
+        if (labels.length) {
+            new Chart(document.getElementById('registrationsChart'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        fill: false,
+                        tension: 0.35
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    </script>
+
+    @if (TempData["ShowCreateStudentModal"]?.ToString() == "true")
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var el = document.getElementById('createStudentModal');
+                if (el) new bootstrap.Modal(el).show();
+            });
+        </script>
+    }
+
+    @if (TempData["ShowCreateClassroomModal"]?.ToString() == "true")
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var el = document.getElementById('createClassroomModal');
+                if (el) new bootstrap.Modal(el).show();
+            });
+        </script>
+    }
+}

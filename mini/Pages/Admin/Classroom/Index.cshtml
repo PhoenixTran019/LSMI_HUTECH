@@ -1,0 +1,159 @@
+﻿@page "/Classroom/{ClassroomId}/Assignments/{AssignmentId?}"
+@model LmsMini.WebApp.Pages.Classroom.Assignment.AssignmentIndexModel
+@{
+    ViewData["Title"] = Model.IsEditMode ? $"Chi tiết Bài tập: {Model.AssignmentDetail?.Title}" : "Quản lý Bài tập";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Quản lý Bài tập lớp: @Model.ClassName (ID: @Model.ClassroomId)</h1>
+
+            @* --- MESSAGE / TEMP DATA --- *@
+            @if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger") alert-dismissible fade show" role="alert">
+                    @Model.Message
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @* --- KHỐI TẠO BÀI TẬP MỚI --- *@
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                    Tạo Bài tập Mới
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#createFormCollapse" aria-expanded="false" aria-controls="createFormCollapse">
+                        <i class="bi bi-plus-circle"></i> Thêm
+                    </button>
+                </div>
+                <div class="collapse @(TempData["ShowCreateAssignmentModal"] == "true" ? "show" : "")" id="createFormCollapse">
+                    <div class="card-body">
+                        <form method="post" asp-page-handler="Create" enctype="multipart/form-data">
+                            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                            <div class="mb-3">
+                                <label asp-for="CreateInput.Title" class="form-label"></label>
+                                <input asp-for="CreateInput.Title" class="form-control" required />
+                                <span asp-validation-for="CreateInput.Title" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="CreateInput.Description" class="form-label"></label>
+                                <textarea asp-for="CreateInput.Description" class="form-control" rows="5"></textarea>
+                                <span asp-validation-for="CreateInput.Description" class="text-danger"></span>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label asp-for="CreateInput.Deadline" class="form-label"></label>
+                                    @* Đảm bảo kiểu input tương thích với DateTime *@
+                                    <input asp-for="CreateInput.Deadline" type="datetime-local" class="form-control" required />
+                                    <span asp-validation-for="CreateInput.Deadline" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label asp-for="CreateInput.HomeworkStatus" class="form-label"></label>
+                                    <select asp-for="CreateInput.HomeworkStatus" class="form-select">
+                                        <option value="NoLate">Không cho phép nộp muộn</option>
+                                        <option value="AllowLate">Cho phép nộp muộn</option>
+                                    </select>
+                                    <span asp-validation-for="CreateInput.HomeworkStatus" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="CreateInput.Files" class="form-label"></label>
+                                <input asp-for="CreateInput.Files" type="file" multiple class="form-control" />
+                            </div>
+
+                            <input type="hidden" asp-for="ClassroomId" />
+                            <button type="submit" class="btn btn-primary">Tạo Bài tập</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            @* --- KHỐI HIỂN THỊ CHI TIẾT BÀI TẬP (NẾU CÓ) --- *@
+            @if (Model.IsEditMode && Model.AssignmentDetail != null)
+            {
+                <partial name="_AssignmentDetailPartial" model="Model" />
+
+                @* --- MODAL EDIT/UPDATE --- *@
+                @await Html.PartialAsync("_EditAssignmentModal", Model)
+            }
+
+            @* --- KHỐI DANH SÁCH BÀI TẬP (Mock Data) --- *@
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-white fw-bold border-bottom">
+                    Danh sách Bài tập
+                </div>
+                <div class="card-body p-0">
+                    @* TODO: Thay thế bằng Model.Assignments *@
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Tiêu đề</th>
+                                <th>Hạn nộp</th>
+                                <th>Trạng thái nộp</th>
+                                <th>Tổng SV nộp</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Bài tập lớn cuối kỳ</td>
+                                <td>2025-12-31</td>
+                                <td>AllowLate</td>
+                                <td>15/30</td>
+                                <td>
+                                    <a asp-page="/Classroom/Assignment/Index" asp-route-classroomId="@Model.ClassroomId" asp-route-assignmentId="ASS001" class="btn btn-sm btn-info">Chi tiết</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // Script để hiển thị lại form tạo mới nếu có lỗi
+        document.addEventListener('DOMContentLoaded', function () {
+            var showCreateForm = '@(TempData["ShowCreateAssignmentModal"] ?? "")';
+            if (showCreateForm === 'true') {
+                var collapseElement = document.getElementById('createFormCollapse');
+                if (collapseElement) {
+                    var bsCollapse = new bootstrap.Collapse(collapseElement, { toggle: false });
+                    bsCollapse.show();
+                }
+            }
+
+            // Script cho Delete File trong Modal Edit (tương tự Lesson)
+            document.querySelectorAll('.delete-file-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    const fileId = this.getAttribute('data-file-id');
+                    const listItem = this.closest('li');
+
+                    // Thêm ID file cần xóa vào input ẩn RemoveFileId
+                    const removeInput = document.createElement('input');
+                    removeInput.type = 'hidden';
+                    removeInput.name = 'UpdateInput.RemoveFileId';
+                    removeInput.value = fileId;
+                    document.getElementById('editAssignmentModal').querySelector('form').appendChild(removeInput);
+
+                    // Đánh dấu đã xóa trên giao diện
+                    listItem.style.textDecoration = 'line-through';
+                    this.disabled = true;
+                    alert(`File ID ${fileId} sẽ được xóa khi cập nhật.`);
+                });
+            });
+        });
+    </script>
+}

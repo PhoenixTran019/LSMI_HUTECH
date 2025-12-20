@@ -1,0 +1,49 @@
+﻿@page "/student/join-classroom"
+@model LmsMini.WebApp.Pages.Student.JoinClassroomModel
+@{
+    ViewData["Title"] = "Tham gia Lớp học";
+    Layout = "_Layout";
+}
+
+<div class="container mt-5 fade-up" style="transition-delay: 200ms;">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card join-card shadow-lg border-0">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3 class="fw-bold my-3">Tham gia Lớp học</h3>
+                    <p class="mb-0 body-small">Nhập mã mời do giảng viên cung cấp.</p>
+                </div>
+                <div class="card-body p-4">
+
+                    @if (!string.IsNullOrEmpty(Model.Message) && !ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger fade show">
+                            <i class="fas fa-exclamation-circle me-2"></i> @Model.Message
+                        </div>
+                    }
+
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <form method="post">
+                        <div class="form-floating mb-4">
+                            <input asp-for="Input.InviteCode" class="form-control" placeholder="Nhập mã mời" />
+                            <label asp-for="Input.InviteCode">Mã mời (Ví dụ: ABCD123)</label>
+                            <span asp-validation-for="Input.InviteCode" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg btn-modern">
+                                <i class="fas fa-sign-in-alt me-2"></i> Tham gia ngay
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center py-3 bg-light">
+                    <div class="small text-muted">
+                        Bạn có vấn đề? <a asp-page="/Student/Classrooms" class="text-primary-default body-bold">Quay lại trang lớp học</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

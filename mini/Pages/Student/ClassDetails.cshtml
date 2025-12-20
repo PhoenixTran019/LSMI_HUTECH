@@ -1,0 +1,141 @@
+﻿@page "/student/classdetails/{id}"
+@model LmsMini.WebApp.Pages.Student.ClassDetailsModel
+@{
+    ViewData["Title"] = Model.ClassDetails.ClassName;
+}
+
+<div class="container-fluid pt-4 fade-up">
+    <a asp-page="/Student/Classrooms" class="btn btn-secondary btn-sm mb-4 btn-modern">
+        <i class="fas fa-arrow-left me-2"></i> Quay lại Danh sách Lớp
+    </a>
+
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h1 class="fw-bold text-primary-default mb-2">@Model.ClassDetails.ClassName</h1>
+            <p class="text-text-medium fs-5 mb-0">
+                <i class="fas fa-chalkboard-teacher me-2"></i>Giảng viên: <strong>@Model.ClassDetails.LecturerName</strong>
+            </p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-warning shadow-sm">
+            <i class="fas fa-exclamation-triangle me-2"></i> @Model.Message
+        </div>
+    }
+
+    <ul class="nav nav-tabs nav-fill" id="classTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link active fw-bold" id="lessons-tab" data-bs-toggle="tab" href="#lessons" role="tab" aria-controls="lessons" aria-selected="true">
+                <i class="fas fa-book-open me-2"></i> Tài liệu & Bài giảng (@Model.ClassDetails.Lessons.Count)
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link fw-bold" id="assignments-tab" data-bs-toggle="tab" href="#assignments" role="tab" aria-controls="assignments" aria-selected="false">
+                <i class="fas fa-tasks me-2"></i> Bài tập (@Model.ClassDetails.Assignments.Count)
+            </a>
+        </li>
+    </ul>
+
+    <div class="tab-content pt-4" id="classTabsContent">
+
+        <div class="tab-pane fade show active" id="lessons" role="tabpanel" aria-labelledby="lessons-tab">
+            @if (Model.ClassDetails.Lessons.Any())
+            {
+                <div class="list-group shadow-sm rounded-3">
+                    @foreach (var lesson in Model.ClassDetails.Lessons.OrderByDescending(l => l.PostedDate))
+                    {
+                        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary-light text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-1 fw-bold text-dark">@lesson.Title</h5>
+                                    <small class="text-muted">
+                                        <i class="far fa-clock me-1"></i> Đăng ngày: @lesson.PostedDate.ToString("dd/MM/yyyy")
+                                    </small>
+                                </div>
+                            </div>
+
+                            <a asp-page="/Student/LessonDetails"
+                               asp-route-classroomId="@Model.ClassDetails.ClassroomId"
+                               asp-route-lessonId="@lesson.LessonId"
+                               class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                                Xem chi tiết <i class="fas fa-chevron-right ms-1"></i>
+                            </a>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted bg-light rounded-3">
+                    <i class="fas fa-folder-open fa-3x mb-3 text-secondary"></i>
+                    <p>Chưa có bài giảng nào được đăng.</p>
+                </div>
+            }
+        </div>
+
+        <div class="tab-pane fade" id="assignments" role="tabpanel" aria-labelledby="assignments-tab">
+            @if (Model.ClassDetails.Assignments.Any())
+            {
+                <div class="card border-0 shadow-sm">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Tiêu đề bài tập</th>
+                                    <th>Hạn nộp</th>
+                                    <th>Trạng thái</th>
+                                    <th class="text-end pe-4">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var assign in Model.ClassDetails.Assignments.OrderBy(a => a.Deadline))
+                                {
+                                    <tr>
+                                        <td class="ps-4 fw-semibold text-primary-default">@assign.Title</td>
+                                        <td>
+                                            <span class="@(assign.Deadline < DateTime.Now ? "text-danger" : "text-dark")">
+                                                <i class="far fa-calendar-alt me-1"></i> @assign.Deadline.ToString("dd/MM/yyyy HH:mm")
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @{
+                                                string badgeClass = assign.Status switch
+                                                {
+                                                    "Đã nộp" => "bg-success", // Cần khớp logic API trả về (Valid/Overdue/Submitted)
+                                                    "Còn hạn" => "bg-primary",
+                                                    "Quá hạn" => "bg-danger",
+                                                    _ => "bg-secondary"
+                                                };
+                                            }
+                                            <span class="badge @badgeClass rounded-pill">@assign.Status</span>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <a asp-page="/Student/AssignmentDetails"
+                                               asp-route-classroomId="@Model.ClassDetails.ClassroomId"
+                                               asp-route-id="@assign.AssignId"
+                                               class="btn btn-sm btn-primary btn-modern shadow-sm">
+                                                <i class="fas fa-upload me-1"></i> Nộp bài
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted bg-light rounded-3">
+                    <i class="fas fa-clipboard-check fa-3x mb-3 text-secondary"></i>
+                    <p>Chưa có bài tập nào được giao.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,126 @@
+﻿@page "/Project/Classrooms"
+@model LmsMini.WebApp.Pages.Project.Classroom.ProjectClassroomIndexModel
+@{
+    ViewData["Title"] = "Quản lý Lớp học Dự án";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-4">
+    <div class="row align-items-center mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 fw-bold text-dark">Lớp học Dự án</h1>
+            <div class="dashboard-breadcrumbs">Quản lý Dự án • Danh sách Lớp</div>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <button class="btn btn-primary btn-modern" data-bs-toggle="modal" data-bs-target="#createProjectClassroomModal">
+                <i class="bi bi-plus-circle"></i> Tạo Lớp Dự án
+            </button>
+        </div>
+    </div>
+
+    @* --- MESSAGE / TEMP DATA --- *@
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger") alert-dismissible fade show" role="alert">
+            @Model.Message
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @* --- BẢNG DANH SÁCH LỚP HỌC DỰ ÁN --- *@
+    <div class="card shadow-sm mt-3">
+        <div class="card-header bg-white fw-bold border-bottom">
+            Các lớp học Dự án bạn phụ trách
+        </div>
+        <div class="card-body p-0">
+            @if (Model.MyClassrooms.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%">ID Lớp</th>
+                                <th style="width: 35%">Tên Lớp Dự án</th>
+                                <th style="width: 30%">Dự án Liên kết</th>
+                                <th>Giảng viên Tạo</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var classroom in Model.MyClassrooms)
+                            {
+                                <tr>
+                                    <td>@classroom.ProClassID</td>
+                                    <td>@classroom.ClassroomName</td>
+                                    <td>@classroom.ProjectTitle</td>
+                                    <td>@classroom.LecturerName</td>
+                                    <td>
+                                        <a asp-page="/Project/Classroom/Detail" asp-route-proClassId="@classroom.ProClassID" class="btn btn-sm btn-info" title="Xem Chi tiết & Nội dung">
+                                            <i class="bi bi-folder2-open"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#addLecturerModal" data-pro-class-id="@classroom.ProClassID" title="Thêm Giảng viên">
+                                            <i class="bi bi-person-plus"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="p-3 text-center text-muted">Bạn không phụ trách lớp học Dự án nào.</p>
+            }
+        </div>
+    </div>
+
+    @* ========================================================= *@
+    @* MODAL 1: TẠO LỚP HỌC DỰ ÁN MỚI *@
+    @* ========================================================= *@
+    @await Html.PartialAsync("_CreateProjectClassroomModal", Model)
+
+    @* ========================================================= *@
+    @* MODAL 2: THÊM GIẢNG VIÊN *@
+    @* ========================================================= *@
+    @await Html.PartialAsync("_AddLecturerToProjectClassroomModal", Model)
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // Script để hiển thị lại modal nếu form lỗi
+        document.addEventListener('DOMContentLoaded', function () {
+            const showModal = (id) => {
+                var modalEl = document.getElementById(id);
+                if (modalEl) {
+                    var myModal = new bootstrap.Modal(modalEl);
+                    myModal.show();
+                }
+            };
+
+            // Hiển thị modal Tạo mới nếu có lỗi
+            var showCreateModal = '@(TempData["ShowCreateModal"] ?? "")';
+            if (showCreateModal === 'true') {
+                showModal('createProjectClassroomModal');
+            }
+
+            // Gán ProClassID cho form Add Lecturer khi modal mở
+            var addLecturerModalEl = document.getElementById('addLecturerModal');
+            addLecturerModalEl.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var proClassId = button.getAttribute('data-pro-class-id');
+
+                var form = document.getElementById('addLecturerForm');
+                var hiddenInput = form.querySelector('#inputProClassID');
+
+                if (hiddenInput && proClassId) {
+                    hiddenInput.value = proClassId;
+                }
+            });
+        });
+    </script>
+}

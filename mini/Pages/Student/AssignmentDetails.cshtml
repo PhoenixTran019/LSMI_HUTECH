@@ -1,0 +1,175 @@
+﻿@page "/student/class/{classroomId}/assignment/{id}"
+@model LmsMini.WebApp.Pages.Student.AssignmentDetailsModel
+@{
+    ViewData["Title"] = Model.Assignment?.Title ?? "Chi tiết bài tập";
+    var assignment = Model.Assignment;
+    var submission = assignment?.LatestSubmission;
+    var isSubmitted = submission != null;
+
+    var statusBadge = "bg-secondary";
+    var statusText = "Chưa nộp";
+
+    if (isSubmitted)
+    {
+        statusText = "Đã nộp";
+        statusBadge = submission.SubmitType == "Late" ? "bg-warning text-dark" : "bg-success";
+    }
+    else if (assignment?.Deadline < DateTime.UtcNow)
+    {
+        statusText = "Quá hạn (Chưa nộp)";
+        statusBadge = "bg-danger";
+    }
+}
+
+<div class="container-fluid pt-4 fade-up">
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-danger shadow-sm">
+            <i class="fas fa-exclamation-circle me-2"></i> @Model.Message
+        </div>
+    }
+    @if (Model.SuccessMessage != null)
+    {
+        <div class="alert alert-success shadow-sm">
+            <i class="fas fa-check-circle me-2"></i> @Model.SuccessMessage
+        </div>
+    }
+
+    @if (assignment != null)
+    {
+        <div class="mb-3">
+            <a asp-page="/Student/ClassDetails" asp-route-id="@RouteData.Values["classroomId"]" class="btn btn-secondary btn-sm btn-modern">
+                <i class="fas fa-arrow-left me-2"></i> Quay lại lớp học
+            </a>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow-medium border-0 mb-4">
+                    <div class="card-header bg-white py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="h4 mb-0 text-primary-default fw-bold">@assignment.Title</h2>
+                            <span class="badge @statusBadge rounded-pill px-3 py-2">@statusText</span>
+                        </div>
+                        <div class="mt-2 text-muted small">
+                            <i class="far fa-clock me-1"></i> Hạn chót:
+                            <span class="fw-bold @(assignment.Deadline < DateTime.UtcNow ? "text-danger" : "text-dark")">
+                                @(assignment.Deadline?.ToString("dd/MM/yyyy HH:mm") ?? "Không thời hạn")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold text-text-medium mb-3">Mô tả</h5>
+                        <div class="bg-light p-3 rounded mb-4" style="white-space: pre-wrap; min-height: 100px;">@(string.IsNullOrEmpty(assignment.Description) ? "Không có mô tả chi tiết." : assignment.Description)</div>
+
+                        @if (assignment.Files != null && assignment.Files.Any())
+                        {
+                            <h6 class="fw-bold mb-3"><i class="fas fa-paperclip me-2"></i> Tài liệu đính kèm</h6>
+                            <div class="list-group list-group-flush border rounded">
+                                @foreach (var file in assignment.Files)
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center bg-white">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-light rounded p-2 me-3 text-primary">
+                                                <i class="fas fa-file-alt"></i>
+                                            </div>
+                                            <span class="fw-semibold text-dark">@file.FileName</span>
+                                        </div>
+                                        <a asp-page-handler="DownloadFile"
+                                           asp-route-classroomId="@RouteData.Values["classroomId"]"
+                                           asp-route-fileId="@file.FileId"
+                                           class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                            <i class="fas fa-download me-1"></i> Tải về
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card shadow-medium border-0 sticky-top" style="top: 20px; z-index: 1;">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="mb-0 fw-bold"><i class="fas fa-upload me-2"></i> Bài làm của bạn</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (isSubmitted)
+                        {
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                                    <span class="text-muted">Ngày nộp:</span>
+                                    <span class="fw-bold text-dark">@submission.SubmitAt?.ToString("dd/MM/yyyy HH:mm")</span>
+                                </div>
+
+                                @if (submission.Grade.HasValue)
+                                {
+                                    <div class="alert alert-success mt-3 text-center border-0 shadow-sm">
+                                        <h1 class="display-4 fw-bold mb-0">@submission.Grade</h1>
+                                        <small class="text-uppercase fw-bold text-success">Điểm số / 10</small>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(submission.FeedBack))
+                                    {
+                                        <div class="alert alert-info mt-2 border-0 shadow-sm">
+                                            <strong><i class="fas fa-comment-dots me-1"></i> Nhận xét của giảng viên:</strong>
+                                            <p class="mb-0 mt-1">@submission.FeedBack</p>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="alert alert-warning mt-3 py-2 text-center small border-0">
+                                        <i class="fas fa-hourglass-half me-1"></i> Đang chờ chấm điểm
+                                    </div>
+                                }
+
+                                <h6 class="fw-bold mt-4 mb-3">File đã nộp:</h6>
+                                <ul class="list-group list-group-flush mb-3">
+                                    @foreach (var file in submission.Files)
+                                    {
+                                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-bottom">
+                                            <span class="text-truncate small text-dark" style="max-width: 180px;" title="@file.FileName">
+                                                <i class="fas fa-file-code text-muted me-2"></i> @file.FileName
+                                            </span>
+                                            <a asp-page-handler="DownloadSubmission"
+                                               asp-route-classroomId="@RouteData.Values["classroomId"]"
+                                               asp-route-fileId="@file.FileId"
+                                               class="btn btn-xs btn-light text-primary border">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+
+                            @if (!submission.Grade.HasValue)
+                            {
+                                <div class="text-center">
+                                    <button class="btn btn-outline-secondary btn-sm w-100" type="button" data-bs-toggle="collapse" data-bs-target="#resubmitForm">
+                                        <i class="fas fa-redo me-1"></i> Nộp lại bài
+                                    </button>
+                                </div>
+                            }
+                        }
+
+                        <div id="resubmitForm" class="collapse @(!isSubmitted ? "show" : "") mt-3">
+                            <form method="post" enctype="multipart/form-data" asp-page-handler="Submit">
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-muted">Chọn file bài làm (PDF, Word, Zip...)</label>
+                                    <input class="form-control form-control-sm" type="file" asp-for="UploadFiles" multiple required>
+                                    <div class="form-text small">Dung lượng tối đa: 200MB</div>
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-success btn-modern py-2 fw-bold shadow-sm">
+                                        <i class="fas fa-paper-plane me-2"></i> @(isSubmitted ? "Nộp lại bài" : "Nộp bài ngay")
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
