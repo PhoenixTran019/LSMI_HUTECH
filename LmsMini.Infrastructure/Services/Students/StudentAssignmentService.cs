@@ -155,6 +155,7 @@ namespace LmsMini.Infrastructure.Services.Students
             };
         }
 
+        // 1. Tải file ĐỀ BÀI (Assignment Files)
         public async Task<FileDownloadInfo?> GetAssignmentFileForDownloadAsync(string classroomId, string fileId, string userId, string webRootPath)
         {
             var studentId = await GetStudentIdOrThrow(userId);
@@ -168,8 +169,7 @@ namespace LmsMini.Infrastructure.Services.Students
                     && f.Assign != null
                     && f.Assign.ClassroomId == classroomId);
 
-            if (fileRec == null) return null;
-            if (string.IsNullOrWhiteSpace(fileRec.FilePath)) return null;
+            if (fileRec == null || string.IsNullOrWhiteSpace(fileRec.FilePath)) return null;
 
             var physical = ToPhysical(webRootPath, fileRec.FilePath);
             if (!File.Exists(physical)) return null;
@@ -177,7 +177,8 @@ namespace LmsMini.Infrastructure.Services.Students
             return new FileDownloadInfo
             {
                 PhysicalPath = physical,
-                ContentType = string.IsNullOrWhiteSpace(fileRec.FileType) ? "application/octet-stream" : fileRec.FileType!,
+                // Ép kiểu octet-stream để trình duyệt Web tải về thay vì mở xem trực tiếp
+                ContentType = "application/octet-stream",
                 DownloadName = string.IsNullOrWhiteSpace(fileRec.FileName) ? Path.GetFileName(physical) : fileRec.FileName!
             };
         }
@@ -266,6 +267,7 @@ namespace LmsMini.Infrastructure.Services.Students
             };
         }
 
+        // 2. Tải file BÀI NỘP của chính mình (Submission Files)
         public async Task<FileDownloadInfo?> GetMySubmissionFileForDownloadAsync(string classroomId, string submitFileId, string userId, string webRootPath)
         {
             var studentId = await GetStudentIdOrThrow(userId);
@@ -282,8 +284,7 @@ namespace LmsMini.Infrastructure.Services.Students
                     && sf.Submit.Assign != null
                     && sf.Submit.Assign.ClassroomId == classroomId);
 
-            if (fileRec == null) return null;
-            if (string.IsNullOrWhiteSpace(fileRec.FilePath)) return null;
+            if (fileRec == null || string.IsNullOrWhiteSpace(fileRec.FilePath)) return null;
 
             var physical = ToPhysical(webRootPath, fileRec.FilePath);
             if (!File.Exists(physical)) return null;
@@ -291,7 +292,8 @@ namespace LmsMini.Infrastructure.Services.Students
             return new FileDownloadInfo
             {
                 PhysicalPath = physical,
-                ContentType = string.IsNullOrWhiteSpace(fileRec.FileType) ? "application/octet-stream" : fileRec.FileType!,
+                // Ép kiểu octet-stream tương tự để hỗ trợ Web/Chrome tải về
+                ContentType = "application/octet-stream",
                 DownloadName = string.IsNullOrWhiteSpace(fileRec.FileName) ? Path.GetFileName(physical) : fileRec.FileName!
             };
         }

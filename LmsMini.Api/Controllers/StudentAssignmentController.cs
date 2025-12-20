@@ -239,24 +239,23 @@ namespace LmsMini.Api.Controllers
                     && f.Assign != null
                     && f.Assign.ClassroomId == classroomId);
 
-            if (fileRec == null)
+            if (fileRec == null || string.IsNullOrWhiteSpace(fileRec.FilePath))
                 return NotFound("Assignment file not found.");
-
-            if (string.IsNullOrWhiteSpace(fileRec.FilePath))
-                return StatusCode(500, "FilePath is empty in database.");
 
             var physicalPath = BuildPhysicalPath(fileRec.FilePath);
 
             if (!System.IO.File.Exists(physicalPath))
                 return NotFound("Physical file not found on server.");
 
-            var contentType = string.IsNullOrWhiteSpace(fileRec.FileType)
-                ? "application/octet-stream"
-                : fileRec.FileType;
+            // THAY ĐỔI TẠI ĐÂY: Ép ContentType thành octet-stream để buộc Chrome tải về
+            var contentType = "application/octet-stream";
 
             var downloadName = string.IsNullOrWhiteSpace(fileRec.FileName)
                 ? Path.GetFileName(physicalPath)
                 : fileRec.FileName;
+
+            // THAY ĐỔI TẠI ĐÂY: Thêm Header Content-Disposition để báo trình duyệt đây là file đính kèm
+            Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{Uri.EscapeDataString(downloadName)}\"");
 
             return PhysicalFile(physicalPath, contentType, downloadName, enableRangeProcessing: true);
         }
@@ -380,24 +379,23 @@ namespace LmsMini.Api.Controllers
                     && sf.Submit.Assign != null
                     && sf.Submit.Assign.ClassroomId == classroomId);
 
-            if (fileRec == null)
+            if (fileRec == null || string.IsNullOrWhiteSpace(fileRec.FilePath))
                 return NotFound("Submission file not found.");
-
-            if (string.IsNullOrWhiteSpace(fileRec.FilePath))
-                return StatusCode(500, "FilePath is empty in database.");
 
             var physicalPath = BuildPhysicalPath(fileRec.FilePath);
 
             if (!System.IO.File.Exists(physicalPath))
                 return NotFound("Physical file not found on server.");
 
-            var contentType = string.IsNullOrWhiteSpace(fileRec.FileType)
-                ? "application/octet-stream"
-                : fileRec.FileType;
+            // THAY ĐỔI TẠI ĐÂY: Tương tự ép kiểu tải về
+            var contentType = "application/octet-stream";
 
             var downloadName = string.IsNullOrWhiteSpace(fileRec.FileName)
                 ? Path.GetFileName(physicalPath)
                 : fileRec.FileName;
+
+            // THAY ĐỔI TẠI ĐÂY: Thêm Header Content-Disposition
+            Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{Uri.EscapeDataString(downloadName)}\"");
 
             return PhysicalFile(physicalPath, contentType, downloadName, enableRangeProcessing: true);
         }
