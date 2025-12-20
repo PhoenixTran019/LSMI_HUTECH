@@ -105,8 +105,8 @@ namespace LmsMini.Infrastructure.Services.Classrooms
 
             var staff = await _context.StaffDeparts
                 .FirstOrDefaultAsync(s => s.StaffId == staffId);
-            
-            var departId = staff?.DepartId ?? "Unknown";
+
+            string? departId = staff?.DepartId;
 
             var log = new ActivityLog
             {
@@ -343,7 +343,7 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             return true;
         }
 
-        //Service to get overview of classroom
+        //==========Service to get overview of classroom==========
         public async Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId, string userId, string role)
         {
             string? businessId = null;

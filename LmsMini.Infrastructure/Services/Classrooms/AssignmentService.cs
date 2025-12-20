@@ -1,5 +1,6 @@
 ﻿using LmsMini.Application.Common.Helpers;
 using LmsMini.Application.DTOs.ClassAssignment;
+using LmsMini.Application.DTOs.Common;
 using LmsMini.Application.DTOs.StudentClassroom;
 using LmsMini.Application.Interfaces;
 using LmsMini.Domain.Models;
@@ -299,6 +300,34 @@ namespace LmsMini.Infrastructure.Services.Classrooms
             return true;
         }
 
+        //==========SERVICE TO DOWNLOAND SUBMIT FILE==========
+        public async Task<FileDownloadInfo?> GetSubmissionFileForTeacherAsync(string classroomId, string fileId)
+        {
+            //Find the file record in the SubmitFiles table.
+            var fileRec = await _context.SubmitFiles
+                .AsNoTracking()
+                .Include(sf => sf.Submit)
+                .ThenInclude(s => s.Assign)
+                .FirstOrDefaultAsync(sf => sf.FileId == fileId && sf.Submit.Assign.ClassroomId == classroomId);
+
+            if (fileRec == null || string.IsNullOrWhiteSpace(fileRec.FilePath))
+                return null;
+
+            //Convert to a physical path (Use the Path.Combine function similar to StudentAssignmentService)
+            var relativePath = fileRec.FilePath.TrimStart('~').TrimStart('/');
+            var physicalPath = Path.Combine(_env.WebRootPath, relativePath.Replace('/', Path.DirectorySeparatorChar));
+
+            if (!File.Exists(physicalPath))
+                return null;
+
+            //Return the correct FileDownloadInfo object.
+            return new FileDownloadInfo
+            {
+                PhysicalPath = physicalPath,
+                ContentType = "application/octet-stream",
+                DownloadName = fileRec.FileName ?? Path.GetFileName(physicalPath)
+            };
+        }
 
         //==========Service to update an existing assignment==========
         public async Task<bool> UpdateAssignmentAsync(string ClassroomId, string assignmentId, UpdateAssignmentDto dto, string staffId, string webRootPath)

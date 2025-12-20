@@ -32,13 +32,28 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowNgrok",
-        p => p
-            .WithOrigins("https://aryan-hypaesthesic-answerably.ngrok-free.dev")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials()
+    options.AddPolicy("AllowNgrok", p => p
+        .SetIsOriginAllowed(origin =>
+            origin == "https://aryan-hypaesthesic-answerably.ngrok-free.dev"
+            || origin.StartsWith("http://localhost:")
+            || origin.StartsWith("https://localhost:")
+            || origin.StartsWith("http://127.0.0.1:")
+            || origin.StartsWith("https://127.0.0.1:")
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()
     );
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
 builder.Services.AddCors(options =>
@@ -198,15 +213,24 @@ if (app.Environment.IsDevelopment())
 }
 app.UseCors("AllowNgrok");
 app.UseCors("AllowRazorDev");
+app.UseCors("AllowAll");
 
 // ======================================================================
 // 4.3 Middleware chung: HTTPS, Authentication, Authorization, Controllers
 // ======================================================================
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+//
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "wwwroot", "uploads")),
+    RequestPath = "/uploads"
+});
 // ======================================================================
 // 5. Chạy ứng dụng
 // ======================================================================

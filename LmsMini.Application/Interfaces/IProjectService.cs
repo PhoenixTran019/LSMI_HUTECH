@@ -14,5 +14,6 @@ namespace LmsMini.Application.Interfaces
 
         Task<bool> ApproveAsync(ProjectApprovalDto dto, string approverId);
 
+        Task<List<ProjectDashboardDto>> GetProjectDashboardAsync(string userId, string role);
     }
 }

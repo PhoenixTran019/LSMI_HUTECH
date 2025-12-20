@@ -91,16 +91,33 @@ namespace LmsMini.Infrastructure.Services
         public async Task<bool> ApproveAsync(ProjectApprovalDto dto, string approverId)
         {
             var assign = await _context.ProjectAssigns
+                .Include(x => x.Project)
                 .FirstOrDefaultAsync(x => x.AssignId == dto.AssignID);
 
             if (assign == null)
                 throw new Exception("Project Assign not found");
 
+            //Get the approver's information.
             var approver = await _context.DepartmentStaffs
                 .FirstOrDefaultAsync(x => x.StaffId == approverId);
 
             if (approver == null)
                 throw new Exception("Approver not found");
+
+            //Security Check
+            var myDeparts = await _context.StaffDeparts
+                .Where(sd => sd.StaffId == approverId)
+                .Select(sd => sd.DepartId)
+                .ToListAsync();
+
+            var creatorOfProject = assign.Project.CreateBy;
+            var isSameDepart = await _context.StaffDeparts
+                .AnyAsync(sd => sd.StaffId == creatorOfProject && myDeparts.Contains(sd.DepartId));
+
+            if (!isSameDepart && approver.Description != "Admin")
+            {
+                throw new Exception("You do not have permission to approve this project.");
+            }
 
             bool isIndustryLeader = approver.Description == "IndustryLeader";
 
@@ -131,29 +148,101 @@ namespace LmsMini.Infrastructure.Services
                 await _context.SaveChangesAsync();
                 return true;
             }
-
-            //Staff approval -> move to IndustryLeader;
-            if (!isIndustryLeader)
+            else
             {
-                assign.Status = "PandingIndustryLeader";
-                assign.ApprovalNote = null; //no comment
-                await _context.SaveChangesAsync();
-                return true;
+                //Staff approval -> move to IndustryLeader;
+                if (!isIndustryLeader)
+                {
+                    assign.Status = "PendingIndustryLeader";
+                    assign.ApprovalNote = null; //no comment
+                    await _context.SaveChangesAsync();
+                    return true;
+                }
+
+                else 
+                {
+                    if (string.IsNullOrEmpty(dto.LecturerID))
+                        throw new Exception("LecturerId is required for IndustryLeader approval.");
+
+                    assign.LecturerId = dto.LecturerID;
+                    assign.Status = "Approved";
+                    assign.ApprovalNote = null;
+                }
             }
 
-            if (isIndustryLeader)
-            {
-                if (string.IsNullOrEmpty(dto.LecturerID))
-                    throw new Exception("LecturerId is required for IndustryLeader approval.");
-
-                assign.LecturerId = dto.LecturerID;
-                assign.Status = "Approved";
-                assign.ApprovalNote = null; 
-            }
+            
 
             await _context.SaveChangesAsync();
             return true;
 
+        }
+
+        public async Task<List<ProjectDashboardDto>> GetProjectDashboardAsync(string userId, string role)
+        {
+            //Initialize the Query database and join with Major and Staff to retrieve information for display.
+            var query = _context.Projects
+                .Include(p => p.ProMajor)
+                .AsQueryable();
+
+            //Role-based filter permissions
+            if (role == "Admin")
+            {
+                //Admin no filter
+            }
+            else if(role == "Staff")
+            {
+                //Staff: I only see projects belonging to my department.
+                var myDepartIds = await _context.StaffDeparts
+                    .Where(sd => sd.StaffId == userId)
+                    .Select(sd => sd.DepartId)
+                    .ToListAsync();
+
+                //Filter projects with Majors belonging to these Departments.
+                var staffInMyDeparts = _context.StaffDeparts
+                    .Where(sd => myDepartIds.Contains(sd.DepartId))
+                    .Select(sd => sd.StaffId);
+
+                //Filter Projects: See projects created by anyone in my department.
+                query = query.Where(p => staffInMyDeparts.Contains(p.CreateBy));
+            }
+            else if(role == "Lecturer")
+            {
+                // Instructor: See the Project based on their Major
+                // Assuming you have a StaffMajors table (Saves which major this instructor teaches)
+                var myMajorIds = await _context.StaffDeparts
+                    .Where(sm => sm.StaffId == userId)
+                    .Select(sm => sm.Staff.MajorsNavigation.MajorId)
+                    .ToListAsync();
+
+                query = query.Where(p => myMajorIds.Contains(p.ProMajor));
+
+            }
+
+            //RETURN DATA
+            return await query
+                .OrderByDescending(p => p.CreateDate)
+                .Select(p => new ProjectDashboardDto
+                {
+                    ProjectID = p.ProjectId,
+                    Title = p.Title,
+                    MajorID = p.ProMajor,
+                    MajorName = _context.Majors
+                        .Where(m => m.MajorId == p.ProMajor)
+                        .Select(m => m.MajorName)
+                        .FirstOrDefault(),
+                    Cohort = p.Cohort,
+                    MaxStudent = p.MaxStudents,
+                    Description = p.Description,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate,
+                    CreateDate = p.CreateDate,
+                    //Join to take infor who create
+                    CreateByName = _context.DepartmentStaffs
+                        .Where(s => s.StaffId == p.CreateBy)
+                        .Select(s => s.FirstName)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
         }
 
     }

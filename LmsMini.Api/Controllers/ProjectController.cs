@@ -2,6 +2,7 @@
 using LmsMini.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace LmsMini.Api.Controllers
 {
@@ -26,7 +27,7 @@ namespace LmsMini.Api.Controllers
                 return BadRequest(ModelState);
 
             //Take ID from token
-            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var staffId = User.Identity?.Name;
             if (staffId == null)
             {
                 return Unauthorized("Cannot identify staff from token.");
@@ -58,7 +59,8 @@ namespace LmsMini.Api.Controllers
         [Authorize(Roles = "Staff, Admin")]
         public async Task<IActionResult> StaffApprove([FromBody] ProjectApprovalDto dto)
         {
-            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var staffId = User.Identity?.Name;
+            dto.LecturerID = staffId;
             if (staffId == null)
                 return Unauthorized("Cannot identify staff from token.");
 
@@ -72,13 +74,38 @@ namespace LmsMini.Api.Controllers
         [Authorize(Roles = "Staff, Admin, Lecturer")]
         public async Task<IActionResult> LeaderApprove([FromBody] ProjectApprovalDto dto)
         {
-            var staffId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var staffId = User.Identity?.Name;
             if (staffId == null)
                 return Unauthorized("Cannot identify staff from token.");
+
+            dto.LecturerID = staffId;
 
             var result = await _projectService.ApproveAsync(dto, staffId);
 
             return Ok(new {success = result});
+        }
+
+        //==========CONTROLLER TO GET PROJECT FOR DASHBOARD==========
+        [HttpGet("Dashboard")]
+        [Authorize(Roles = "Admin, Staff, Lecturer")]
+        public async Task<IActionResult> GetDashboard()
+        {
+            var userId = User.Identity?.Name;
+
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("User ID not found if token.");
+
+            try
+            {
+                var projects = await _projectService.GetProjectDashboardAsync(userId, role);
+                return Ok(projects);
+            }
+            catch(Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
     }
 }

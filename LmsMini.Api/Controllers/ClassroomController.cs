@@ -67,8 +67,10 @@ namespace LmsMini.Api.Controllers
         [HttpPost("{classroomId}/add-member")]
         public async Task<IActionResult> AddMember(string classroomId, [FromBody]AddMemberDto dto)
         {
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserId = User.Identity?.Name;
             if (string.IsNullOrEmpty(currentUserId)) return Unauthorized("Cannot identify user from token.");
+
+            var isAdmin = User.IsInRole("Admin");
 
             // 1. KIỂM TRA QUYỀN (Logic giữ lại tại Controller, như yêu cầu của bạn)
             var isTeacher = await _context.ClassroomMembers
@@ -76,7 +78,7 @@ namespace LmsMini.Api.Controllers
                                m.LecturerId == currentUserId &&
                                m.RoleInClass == "Teacher"); // Lỗi: Teacher phải là hằng số hoặc enum
 
-            if (!isTeacher) return Forbid("Only a teacher of this class can add members.");
+            if (!isTeacher && !isAdmin) return Forbid("Only a teacher of this class can add members.");
 
             // 2. Gọi Service và Xử lý lỗi chi tiết
             try

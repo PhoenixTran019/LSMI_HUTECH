@@ -109,6 +109,27 @@ namespace LmsMini.Api.Controllers
             return NoContent(); //send 204 if not update success.
         }
 
+        [Authorize(Roles = "Staff, Lecturer, Admin")]
+        [HttpGet("{assignmentId}/submissions/download-file/{fileId}")]
+        public async Task<IActionResult> DownloadSubmissionFile(string classroomId, string fileId)
+        {
+            var fileInfo = await _assigment.GetSubmissionFileForTeacherAsync(classroomId, fileId);
+
+            if (fileInfo == null)
+            {
+                return NotFound("Tệp tin không tồn tại hoặc đã bị xóa.");
+            }
+
+            // Đảm bảo ContentType là loại file tải về nếu bạn muốn ép Chrome không mở trực tiếp
+            // "application/octet-stream" là loại nhị phân chung buộc trình duyệt phải tải
+            var contentType = "application/octet-stream";
+
+            // Thêm header để báo trình duyệt đây là file đính kèm (attachment)
+            Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{fileInfo.DownloadName}\"");
+
+            return PhysicalFile(fileInfo.PhysicalPath, contentType, fileInfo.DownloadName);
+        }
+
         //===========UPDATE ASSIGNMENT ==============
         [Authorize(Roles = "Staff,Lecturer,Admin")]
         [HttpPut("update-assignment/{assignmentId}")]

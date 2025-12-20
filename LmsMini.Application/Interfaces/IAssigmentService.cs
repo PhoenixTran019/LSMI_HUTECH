@@ -1,4 +1,5 @@
 ﻿using LmsMini.Application.DTOs.ClassAssignment;
+using LmsMini.Application.DTOs.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,8 @@ namespace LmsMini.Application.Interfaces
         Task<StaffAssignmentDetailDto?> StaffGetAssignmentDetailAysnc(string classroomId, string assigmentId);
 
         Task<bool> GradeSubmissionAsync(string classroomId, string assignmentId, GradeSubmissionDto dto, string staffId);
+
+        Task<FileDownloadInfo?> GetSubmissionFileForTeacherAsync(string classroomId, string fileId);
 
         Task<bool> UpdateAssignmentAsync(string classroomId,string assignmentId, UpdateAssignmentDto dto, string staffId, string webRootPath);
 
