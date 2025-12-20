@@ -1,5 +1,10 @@
 ﻿using LmsMini.Application.Common.Helpers;
+using LmsMini.Application.DTOs;
+using LmsMini.Application.DTOs.Common;
+using LmsMini.Application.DTOs.Lesson;
+using LmsMini.Application.DTOs.Student;
 using LmsMini.Application.Interfaces;
+using LmsMini.Application.Models;
 using LmsMini.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -7,7 +12,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using LmsMini.Application.Models;
 
 namespace LmsMini.Infrastructure.Services.Students
 {
@@ -98,5 +102,66 @@ namespace LmsMini.Infrastructure.Services.Students
 
             return result;
         }
+
+        public async Task<StudentLessonViewDto?> GetLessonDetailAsync(string classroomId, string lessonId, string studentId)
+        {
+            // Kiểm tra quyền thành viên trước khi cho xem chi tiết
+            var isMember = await _context.ClassroomMembers
+                .AnyAsync(m => m.ClassroomId == classroomId && m.StudentId == studentId);
+
+            if (!isMember) return null;
+
+            // Truy vấn chi tiết Lesson thuộc về Classroom đó
+            var lesson = await _context.Lessons
+                .AsNoTracking()
+                .Include(l => l.LessonFiles)
+                .FirstOrDefaultAsync(l => l.LessonId == lessonId && l.ClassroomId == classroomId);
+
+            if (lesson == null) return null;
+
+            return new StudentLessonViewDto
+            {
+                LessonId = lesson.LessonId,
+                Title = lesson.Title,
+                Content = lesson.Content,
+                CreateAt = lesson.CreateAt,
+                Files = lesson.LessonFiles.Select(f => new FileDto
+                {
+                    FileID = f.FilesId,
+                    FileName = f.FileName,
+                    FileType = f.FileType
+                }).ToList()
+            };
+        }
+
+        public async Task<FileDownloadInfo?> GetLessonFileForDownloadAsync(string classroomId, string lessonId, string fileId, string studentId, string webRootPath)
+        {
+            // Kiểm tra membership
+            var isMember = await _context.ClassroomMembers
+                .AnyAsync(m => m.ClassroomId == classroomId && m.StudentId == studentId);
+            if (!isMember) return null;
+
+            // Ràng buộc chặt chẽ: File thuộc Lesson, Lesson thuộc Classroom
+            var fileRec = await _context.LessonFiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(f =>
+                    f.FilesId == fileId &&
+                    f.LessonId == lessonId &&
+                    _context.Lessons.Any(l => l.LessonId == lessonId && l.ClassroomId == classroomId));
+
+            if (fileRec == null || string.IsNullOrWhiteSpace(fileRec.FilePath)) return null;
+
+            var physicalPath = Path.Combine(webRootPath, fileRec.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+
+            if (!System.IO.File.Exists(physicalPath)) return null;
+
+            return new FileDownloadInfo
+            {
+                PhysicalPath = physicalPath,
+                ContentType = "application/octet-stream",
+                DownloadName = fileRec.FileName ?? Path.GetFileName(physicalPath)
+            };
+        }
+
     }
 }

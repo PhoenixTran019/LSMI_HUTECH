@@ -8,6 +8,8 @@ namespace LmsMini.Application.DTOs
 {
     public class FileDto
     {
+        public string? FileID { get; set; }
+
         public string? FileName { get; set; }
 
         public string? FilePath { get; set; }

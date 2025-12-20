@@ -21,6 +21,7 @@ namespace LmsMini.Api.Controllers
     {
         private readonly IStudentClassroomService _studentClassroomService;
         private readonly LmsDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
         public StudentClassroomController(IStudentClassroomService studentClassroomService, LmsDbContext context)
         {
@@ -80,6 +81,39 @@ namespace LmsMini.Api.Controllers
             */
 
             return Ok(result);
+        }
+
+        [HttpGet("lessons/{lessonId}")]
+        public async Task<IActionResult> GetLessonDetail(string classroomId, string lessonId)
+        {
+            var currentStudentId = User.Identity?.Name;
+            if (string.IsNullOrEmpty(currentStudentId)) return Unauthorized();
+
+            var detail = await _studentClassroomService.GetLessonDetailAsync(classroomId, lessonId, currentStudentId);
+
+            if (detail == null)
+                return NotFound($"Không tìm thấy bài học {lessonId} trong lớp học này.");
+
+            return Ok(detail);
+        }
+
+        [HttpGet("lessons/{lessonId}/files/{fileId}/download")]
+        public async Task<IActionResult> DownloadLessonFile(string classroomId, string lessonId, string fileId)
+        {
+            var currentStudentId = User.Identity?.Name;
+            if (string.IsNullOrEmpty(currentStudentId)) return Unauthorized();
+
+            // Truyền đầy đủ định danh vào Service để tránh việc dùng FileId của bài học này tải cho bài học kia
+            var fileInfo = await _studentClassroomService.GetLessonFileForDownloadAsync(
+                classroomId, lessonId, fileId, currentStudentId, _env.WebRootPath);
+
+            if (fileInfo == null)
+                return NotFound("Tài liệu không tồn tại, hoặc không thuộc bài học/lớp học này.");
+
+            // Thiết lập Header ép tải về cho đa nền tảng
+            Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{Uri.EscapeDataString(fileInfo.DownloadName)}\"");
+
+            return PhysicalFile(fileInfo.PhysicalPath, "application/octet-stream", fileInfo.DownloadName);
         }
 
     }
