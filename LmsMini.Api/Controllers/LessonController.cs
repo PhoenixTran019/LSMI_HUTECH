@@ -14,13 +14,11 @@ namespace LmsMini.Api.Controllers
     public class LessonController : Controller
     {
         private readonly ILessonService _lessonService;
-        private readonly IWebHostEnvironment _env;
         private readonly LmsDbContext _context;
 
         public LessonController(ILessonService lessonService, IWebHostEnvironment env, LmsDbContext context)
         {
             _lessonService = lessonService;
-            _env = env;
             _context = context;
         }
 
@@ -36,17 +34,8 @@ namespace LmsMini.Api.Controllers
             {
                 // BƯỚC 1: LẤY STAFFID THỰC TỪ TOKEN CLAIM (Dùng ClaimTypes.Name)
                 // Vì bạn xác nhận StaffId TRÙNG VỚI Username, và Username nằm trong claim ClaimTypes.Name
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == userId);
-                if (staff == null)
-                {
-                    
-                    return StatusCode(403, new
-                    {
-                        Message = "Không thể xác định nhân viên thực hiện tác vụ này trong hệ thống nghiệp vụ."
-                    });
-                }
-
+                var userId = User.Identity?.Name;
+               
                 // BƯỚC 2: KIỂM TRA TÍNH HỢP LỆ CỦA STAFFID TRONG DB
                 // Việc này là cần thiết để đảm bảo StaffId này tồn tại trong bảng DepartmentStaffs (tránh lỗi FK)
 
@@ -64,7 +53,7 @@ namespace LmsMini.Api.Controllers
                     return BadRequest("ID lớp học là bắt buộc.");
 
                 // BƯỚC 4: Gọi Service với StaffId HỢP LỆ (đã fix)
-                var lessonId = await _lessonService.CreateLessonWithFilesAsync(dto, staff.StaffId, _env.WebRootPath);
+                var lessonId = await _lessonService.CreateLessonWithFilesAsync(dto, userId);
 
                 return Ok(new { LessonID = lessonId });
             }
@@ -108,32 +97,11 @@ namespace LmsMini.Api.Controllers
         public async Task<IActionResult> UpdateLesson(string lessonId, string classroomId, [FromForm] UpdateLessonDto dto)
         {
             //Take StaffID form claim
-            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == staffId);
+            var userId = User.Identity?.Name;
 
-            if (staff == null)
-            {
-                
-                return StatusCode(403, new
-                {
-                    Message = "Không thể xác định nhân viên thực hiện tác vụ này trong hệ thống nghiệp vụ."
-                });
-            }
+            var ok = await _lessonService.UpdateLessonAsync(classroomId, lessonId, dto, userId);
 
-            //webRootPath to build phisical link
-            var webRootPath = _env.WebRootPath;
-            if(string.IsNullOrEmpty(webRootPath))
-                return StatusCode(500, "Cann't determine web root path");
-
-            var ok = await _lessonService.UpdateLessonAsync(classroomId, lessonId, dto, staff.StaffId, webRootPath);
-
-            if (!ok)
-            {
-                return NotFound("Lesson not found!");
-
-                
-            }
-            return NoContent();
+            return ok ? NoContent() : NotFound();
         }
 
         //Controller to delete lesson
@@ -141,30 +109,10 @@ namespace LmsMini.Api.Controllers
         [HttpDelete("{lessonId}/Delete-Lesson")]
         public async Task<IActionResult> DeleteLesson(string classroomId, string lessonId)
         {
-            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == staffId);
+            var userId = User.Identity?.Name;
 
-            if (staff == null)
-            {
-                
-                return StatusCode(403, new
-                {
-                    Message = "Không thể xác định nhân viên thực hiện tác vụ này trong hệ thống nghiệp vụ."
-                });
-            }
-
-            if (string.IsNullOrEmpty(staffId))
-                return Unauthorized("Doesn't find StaffId in token");
-
-            var webRootPath = _env.WebRootPath;
-
-            var deteted = await _lessonService.DeleteLessonAsync(classroomId, lessonId, staff.StaffId, webRootPath);
-            if (!deteted)
-            {
-                return NotFound("Lesson not found!");
-            }
-
-            return NoContent();
+            var ok = await _lessonService.DeleteLessonAsync(classroomId, lessonId, userId);
+            return ok ? NoContent() : NotFound();
         }
 
       

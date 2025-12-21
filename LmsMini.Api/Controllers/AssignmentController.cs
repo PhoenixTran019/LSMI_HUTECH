@@ -13,13 +13,11 @@ namespace LmsMini.Api.Controllers
     public class AssignmentController : Controller
     {
         private readonly IAssigmentService _assigment;
-        private readonly IWebHostEnvironment _env;
         private readonly LmsDbContext _context;
 
-        public AssignmentController (IAssigmentService assigment, IWebHostEnvironment env, LmsDbContext context)
+        public AssignmentController (IAssigmentService assigment, LmsDbContext context)
         {
             _assigment = assigment;
-            _env = env;
             _context = context;
         }
 
@@ -30,19 +28,10 @@ namespace LmsMini.Api.Controllers
         [HttpPost("create-assignment")]
         public async Task<IActionResult> CreateAssignment([FromForm] CreateAssigmentWithFilesDto dto)
         {
-            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == staffId);
+            var userId = User.Identity?.Name;
+            
 
-            if (staff == null)
-            {
-
-                return StatusCode(403, new
-                {
-                    Message = "Không thể xác định nhân viên thực hiện tác vụ này trong hệ thống nghiệp vụ."
-                });
-            }
-
-            var assignId = await _assigment.CreateAssignmentWithFilesAsync(dto, staff.StaffId, _env.WebRootPath);
+            var assignId = await _assigment.CreateAssignmentWithFilesAsync(dto, userId);
 
             return Ok(new { AssignmentID = assignId });
         }
@@ -144,10 +133,7 @@ namespace LmsMini.Api.Controllers
         {
             var fileInfo = await _assigment.GetSubmissionFileForTeacherAsync(classroomId, fileId);
 
-            if (fileInfo == null)
-            {
-                return NotFound("Tệp tin không tồn tại hoặc đã bị xóa.");
-            }
+            if (fileInfo == null) return NotFound("File not found.");
 
             // Đảm bảo ContentType là loại file tải về nếu bạn muốn ép Chrome không mở trực tiếp
             // "application/octet-stream" là loại nhị phân chung buộc trình duyệt phải tải
@@ -167,22 +153,9 @@ namespace LmsMini.Api.Controllers
         {
             dto.ClasroomID = classroomId;
             dto.AssignmentID = assignmentId;
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == userId);
-            if (staff == null)
-            {
+            var userId = User.Identity?.Name;
 
-                return StatusCode(403, new
-                {
-                    Message = "Không thể xác định nhân viên thực hiện tác vụ này trong hệ thống nghiệp vụ."
-                });
-            }
-
-            var webRootPath = _env.WebRootPath;
-            if(string.IsNullOrEmpty(webRootPath))
-                return StatusCode(500, "Web root path is not configured.");
-
-            var ok = await _assigment.UpdateAssignmentAsync(classroomId, assignmentId, dto, staff.StaffId, webRootPath);
+            var ok = await _assigment.UpdateAssignmentAsync(classroomId, assignmentId, dto, userId);
             if (!ok)
                 return StatusCode(500, "Failed to update assignment.");
 
@@ -195,19 +168,11 @@ namespace LmsMini.Api.Controllers
         public async Task<IActionResult> DeleteAssignment(string classroomId, string assignmentId)
         {
             //StaffId stored in JWT claim
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.Identity?.Name;
 
-            var staff = await _context.DepartmentStaffs.FirstOrDefaultAsync(s => s.UserId == userId);
-            if (staff == null)
-            {
+            
 
-                return StatusCode(403, new
-                {
-                    Message = "Không thể xác định nhân viên thực hiện tác vụ này trong hệ thống nghiệp vụ."
-                });
-            }
-
-            var ok = await _assigment.DeleteAssignmentAsync(classroomId, assignmentId, staff.StaffId, _env.WebRootPath);
+            var ok = await _assigment.DeleteAssignmentAsync(classroomId, assignmentId, userId);
 
             if (!ok)
                 return NotFound("Assignment not found or unanble to delete");

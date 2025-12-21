@@ -16,13 +16,13 @@ namespace LmsMini.Api.Controllers
     {
         private readonly IClassroomService _classroomService;
         private readonly LmsDbContext _context;
-        private readonly IWebHostEnvironment _env;
+        private readonly string _uploadRoot;
 
-        public ClassroomController(IClassroomService classroomService, LmsDbContext context, IWebHostEnvironment env)
+        public ClassroomController(IClassroomService classroomService, LmsDbContext context, IConfiguration configuration)
         {
             _classroomService = classroomService;
             _context = context;
-            _env = env;
+            _uploadRoot = configuration["UploadSettings:RootPath"];
         }
 
         //==========Create Classroom=========
@@ -176,21 +176,28 @@ namespace LmsMini.Api.Controllers
             return NoContent();
         }
 
-        [Authorize(Roles = ("Admin, Staff"))]
+        [Authorize(Roles = "Admin, Staff")]
         [HttpDelete("{classroomId}/Delete-Classroom")]
-        public async Task<IActionResult> DeleteClassroom (string classroomId)
+        public async Task<IActionResult> DeleteClassroom(string classroomId)
         {
-            var staffId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(staffId))
-                return Unauthorized("Cannot identify staff form token");
+            // 1. Lấy StaffId (UserId) từ Token
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("Cannot identify staff from token");
 
-            var webRootPath = _env.WebRootPath;
+            // 2. Tìm StaffId thực tế trong DB (nếu UserId trong token là UUID)
+            var staff = await _context.DepartmentStaffs
+                .FirstOrDefaultAsync(s => s.UserId == userId);
 
-            var ok = await _classroomService.DeleteClassroomAsync(classroomId, staffId, webRootPath);
+            var staffId = staff?.StaffId ?? userId;
+
+            // 3. Gọi Service xử lý (Không truyền webRootPath nữa)
+            var ok = await _classroomService.DeleteClassroomAsync(classroomId, staffId);
 
             if (!ok)
                 return NotFound("Class not found or cannot delete");
 
+            // 4. Trả về thành công
             return NoContent();
         }
 

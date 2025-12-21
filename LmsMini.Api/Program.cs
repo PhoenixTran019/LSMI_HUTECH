@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -29,6 +30,8 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+
+var uploadRoot = builder.Configuration["UploadSettings:RootPath"];
 
 builder.Services.AddCors(options =>
 {
@@ -201,6 +204,8 @@ var app = builder.Build();
 // ======================================================================
 app.UseSerilogRequestLogging();
 
+
+
 // ======================================================================
 // 4.2 Bật Swagger chỉ trong môi trường phát triển
 // ======================================================================
@@ -225,12 +230,21 @@ app.UseAuthorization();
 app.MapControllers();
 
 //
-app.UseStaticFiles(new StaticFileOptions
+if (!string.IsNullOrEmpty(uploadRoot))
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "wwwroot", "uploads")),
-    RequestPath = "/uploads"
-});
+    // Đảm bảo thư mục tồn tại để không bị văng Exception
+    if (!Directory.Exists(uploadRoot))
+    {
+        Directory.CreateDirectory(uploadRoot);
+    }
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(uploadRoot),
+        RequestPath = "/uploads"
+    });
+}
+//
 // ======================================================================
 // 5. Chạy ứng dụng
 // ======================================================================
