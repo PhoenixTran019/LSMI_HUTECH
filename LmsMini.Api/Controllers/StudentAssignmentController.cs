@@ -1,4 +1,5 @@
 ﻿using LmsMini.Application.Common.Helpers;
+using LmsMini.Application.Interfaces;
 using LmsMini.Domain.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -14,57 +15,20 @@ namespace LmsMini.Api.Controllers
     public class StudentAssignmentController : ControllerBase
     {
         private readonly LmsDbContext _context;
-        private readonly IWebHostEnvironment _env;
+        private readonly IStudentAssignmentService _assignmentService;
 
-        public StudentAssignmentController(LmsDbContext context, IWebHostEnvironment env)
+        public StudentAssignmentController(LmsDbContext context, IStudentAssignmentService assignmentService)
         {
+            _assignmentService = assignmentService;
             _context = context;
-            _env = env;
         }
+
+        private string? GetUserId() => User.Identity?.Name;
 
         // =========================
         // Helpers
         // =========================
-        private async Task<(string studentId, IActionResult? error)> GetStudentIdOrError()
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrWhiteSpace(userId))
-                return (string.Empty, Unauthorized("Cannot identify user from token."));
-
-            var studentId = await _context.Students
-                .Where(s => s.UserId == userId)
-                .Select(s => s.StudentId)
-                .FirstOrDefaultAsync();
-
-            if (string.IsNullOrWhiteSpace(studentId))
-                return (string.Empty, Unauthorized("Student profile not found for this token."));
-
-            return (studentId, null);
-        }
-
-        private async Task<IActionResult?> EnsureStudentIsMember(string classroomId, string studentId)
-        {
-            // NOTE: bỏ điều kiện RoleInClass để tránh data lệch làm Student bị chặn
-            var isMember = await _context.ClassroomMembers
-                .AnyAsync(m => m.ClassroomId == classroomId && m.StudentId == studentId);
-
-            if (!isMember)
-                return Forbid("You are not a member of this classroom.");
-
-            return null;
-        }
-
-        private string BuildPhysicalPath(string relativeFilePath)
-        {
-            var webRoot = _env.WebRootPath;
-            if (string.IsNullOrWhiteSpace(webRoot))
-                throw new InvalidOperationException("WebRootPath is not configured.");
-
-            var relative = relativeFilePath.TrimStart('/')
-                .Replace('/', Path.DirectorySeparatorChar);
-
-            return Path.Combine(webRoot, relative);
-        }
+       
 
         // =========================
         // 1) Student list assignments
@@ -72,89 +36,10 @@ namespace LmsMini.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAssignments(string classroomId)
         {
-            var (studentId, err) = await GetStudentIdOrError();
-            if (err != null) return err;
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var memberErr = await EnsureStudentIsMember(classroomId, studentId);
-            if (memberErr != null) return memberErr;
-
-            var assignments = await _context.Assignments
-                .AsNoTracking()
-                .Where(a => a.ClassroomId == classroomId)
-                .Select(a => new
-                {
-                    a.AssignId,
-                    a.Title,
-                    a.Description,
-                    a.Deadline,
-                    a.DeadlineStatus,
-                    a.HomeworkStatus,
-                    a.CreateAt,
-                    FileCount = a.AssignmentFiles.Count
-                })
-                .OrderByDescending(a => a.CreateAt)
-                .ToListAsync();
-
-            var assignIds = assignments
-                .Where(a => !string.IsNullOrWhiteSpace(a.AssignId))
-                .Select(a => a.AssignId!)
-                .ToList();
-
-            var latestSubmissions = await _context.Submissions
-                .AsNoTracking()
-                .Where(s => s.StudentId == studentId
-                            && s.AssignId != null
-                            && assignIds.Contains(s.AssignId))
-                .GroupBy(s => s.AssignId!)
-                .Select(g => g.OrderByDescending(x => x.SubmitAt).FirstOrDefault())
-                .Where(x => x != null && x.AssignId != null)
-                .ToDictionaryAsync(x => x!.AssignId!, x => x!);
-
-            var result = assignments.Select(a =>
-            {
-                if (string.IsNullOrWhiteSpace(a.AssignId))
-                {
-                    return new
-                    {
-                        a.AssignId,
-                        a.Title,
-                        a.Description,
-                        a.Deadline,
-                        a.DeadlineStatus,
-                        a.HomeworkStatus,
-                        a.CreateAt,
-                        a.FileCount,
-                        HasSubmitted = false,
-                        SubmittedAt = (DateTime?)null,
-                        IsLate = false,
-                        SubmitType = (string?)null
-                    };
-                }
-
-                latestSubmissions.TryGetValue(a.AssignId!, out var sub);
-                var submittedAt = sub?.SubmitAt;
-
-                var isLate = submittedAt.HasValue && a.Deadline.HasValue
-                    ? submittedAt.Value > a.Deadline.Value
-                    : false;
-
-                return new
-                {
-                    a.AssignId,
-                    a.Title,
-                    a.Description,
-                    a.Deadline,
-                    a.DeadlineStatus,
-                    a.HomeworkStatus,
-                    a.CreateAt,
-                    a.FileCount,
-                    HasSubmitted = sub != null,
-                    SubmittedAt = submittedAt,
-                    IsLate = isLate,
-                    SubmitType = sub?.SubmitType
-                };
-            });
-
+            var result = await _assignmentService.GetAssignmentsAsync(classroomId, userId);
             return Ok(result);
         }
 
@@ -164,59 +49,13 @@ namespace LmsMini.Api.Controllers
         [HttpGet("{assignmentId}/detail")]
         public async Task<IActionResult> GetAssignmentDetail(string classroomId, string assignmentId)
         {
-            var (studentId, err) = await GetStudentIdOrError();
-            if (err != null) return err;
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var memberErr = await EnsureStudentIsMember(classroomId, studentId);
-            if (memberErr != null) return memberErr;
+            var detail = await _assignmentService.GetAssignmentDetailAsync(classroomId, assignmentId, userId);
+            if (detail == null) return NotFound("Assignment not found.");
 
-            var assignment = await _context.Assignments
-                .AsNoTracking()
-                .Include(a => a.AssignmentFiles)
-                .FirstOrDefaultAsync(a => a.AssignId == assignmentId && a.ClassroomId == classroomId);
-
-            if (assignment == null)
-                return NotFound("Assignment not found.");
-
-            var latestSubmission = await _context.Submissions
-                .AsNoTracking()
-                .Include(s => s.SubmitFiles)
-                .Where(s => s.AssignId == assignmentId && s.StudentId == studentId)
-                .OrderByDescending(s => s.SubmitAt)
-                .FirstOrDefaultAsync();
-
-            var response = new
-            {
-                assignment.AssignId,
-                assignment.Title,
-                assignment.Description,
-                assignment.Deadline,
-                assignment.DeadlineStatus,
-                assignment.HomeworkStatus,
-                assignment.CreateAt,
-                Files = assignment.AssignmentFiles.Select(f => new
-                {
-                    f.FileId,
-                    f.FileName,
-                    f.FileType
-                }).ToList(),
-                LatestSubmission = latestSubmission == null ? null : new
-                {
-                    latestSubmission.SubmitId,
-                    latestSubmission.SubmitAt,
-                    latestSubmission.SubmitType,
-                    latestSubmission.FeedBack,
-                    latestSubmission.Grade, // nếu Grade entity là double? thì OK ở anonymous object
-                    Files = latestSubmission.SubmitFiles.Select(sf => new
-                    {
-                        sf.FileId,
-                        sf.FileName,
-                        sf.FileType
-                    }).ToList()
-                }
-            };
-
-            return Ok(response);
+            return Ok(detail);
         }
 
         // =========================
@@ -225,135 +64,46 @@ namespace LmsMini.Api.Controllers
         [HttpGet("files/{fileId}/download")]
         public async Task<IActionResult> DownloadAssignmentFile(string classroomId, string fileId)
         {
-            var (studentId, err) = await GetStudentIdOrError();
-            if (err != null) return err;
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var memberErr = await EnsureStudentIsMember(classroomId, studentId);
-            if (memberErr != null) return memberErr;
+            // Service đã xử lý ToPhysical() và check file tồn tại
+            var info = await _assignmentService.GetAssignmentFileForDownloadAsync(classroomId, fileId, userId);
+            if (info == null) return NotFound("File not found on server.");
 
-            var fileRec = await _context.AssignmentFiles
-                .AsNoTracking()
-                .Include(f => f.Assign)
-                .FirstOrDefaultAsync(f =>
-                    f.FileId == fileId
-                    && f.Assign != null
-                    && f.Assign.ClassroomId == classroomId);
-
-            if (fileRec == null || string.IsNullOrWhiteSpace(fileRec.FilePath))
-                return NotFound("Assignment file not found.");
-
-            var physicalPath = BuildPhysicalPath(fileRec.FilePath);
-
-            if (!System.IO.File.Exists(physicalPath))
-                return NotFound("Physical file not found on server.");
-
-            // THAY ĐỔI TẠI ĐÂY: Ép ContentType thành octet-stream để buộc Chrome tải về
-            var contentType = "application/octet-stream";
-
-            var downloadName = string.IsNullOrWhiteSpace(fileRec.FileName)
-                ? Path.GetFileName(physicalPath)
-                : fileRec.FileName;
-
-            // THAY ĐỔI TẠI ĐÂY: Thêm Header Content-Disposition để báo trình duyệt đây là file đính kèm
-            Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{Uri.EscapeDataString(downloadName)}\"");
-
-            return PhysicalFile(physicalPath, contentType, downloadName, enableRangeProcessing: true);
+            Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{Uri.EscapeDataString(info.DownloadName)}\"");
+            return PhysicalFile(info.PhysicalPath, info.ContentType, info.DownloadName);
         }
 
         // =========================
         // 4) Student submit assignment (multipart/form-data)
         // =========================
         [HttpPost("{assignmentId}/submit")]
-        [RequestSizeLimit(200_000_000)]
+        [RequestSizeLimit(1_000_000_000)]
         public async Task<IActionResult> SubmitAssignment(
             string classroomId,
             string assignmentId,
             [FromForm] StudentSubmitAssignmentRequest request)
         {
-            var (studentId, err) = await GetStudentIdOrError();
-            if (err != null) return err;
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var memberErr = await EnsureStudentIsMember(classroomId, studentId);
-            if (memberErr != null) return memberErr;
-
-            var assignment = await _context.Assignments
-                .FirstOrDefaultAsync(a => a.AssignId == assignmentId && a.ClassroomId == classroomId);
-
-            if (assignment == null)
-                return NotFound("Assignment not found.");
-
-            if (request.Files == null || request.Files.Count == 0)
-                return BadRequest("No files provided.");
-
-            var submitId = Uuidv7Generator.NewUuid7().ToString();
-            var now = DateTime.UtcNow;
-
-            string submitType;
-            if (!string.IsNullOrWhiteSpace(request.SubmitType))
-                submitType = request.SubmitType.Trim();
-            else
-                submitType = (assignment.Deadline.HasValue && now > assignment.Deadline.Value) ? "Late" : "OnTime";
-
-            var submission = new Submission
+            try
             {
-                SubmitId = submitId,
-                AssignId = assignmentId,
-                StudentId = studentId,
-                SubmitAt = now,
-                SubmitType = submitType,
-                FeedBack = null,
-                Grade = null
-            };
+                var result = await _assignmentService.SubmitAssignmentAsync(
+                    classroomId,
+                    assignmentId,
+                    userId,
+                    request.SubmitType,
+                    request.Files);
 
-            await _context.Submissions.AddAsync(submission);
-
-            var webRoot = _env.WebRootPath;
-            if (string.IsNullOrWhiteSpace(webRoot))
-                return StatusCode(500, "WebRootPath is not configured.");
-
-            var folderPath = Path.Combine(webRoot, "uploads", "Submissions", classroomId, assignmentId, studentId, submitId);
-            Directory.CreateDirectory(folderPath);
-
-            foreach (var file in request.Files)
-            {
-                if (file == null || file.Length == 0) continue;
-
-                var fileId = Uuidv7Generator.NewUuid7().ToString();
-                var original = Path.GetFileName(file.FileName);
-                var uniqueName = $"{fileId}_{original}";
-                var fullPath = Path.Combine(folderPath, uniqueName);
-
-                using (var stream = new FileStream(fullPath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-
-                var relativePath = $"/uploads/Submissions/{classroomId}/{assignmentId}/{studentId}/{submitId}/{uniqueName}";
-
-                var submitFile = new SubmitFile
-                {
-                    FileId = fileId,
-                    SubmitId = submitId,
-                    FileName = original,
-                    FilePath = relativePath,
-                    FileType = file.ContentType,
-                    UpdateAt = now
-                };
-
-                await _context.SubmitFiles.AddAsync(submitFile);
+                return Ok(result);
             }
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new
+            catch (Exception ex)
             {
-                SubmitID = submitId,
-                AssignID = assignmentId,
-                StudentID = studentId,
-                SubmitAt = now,
-                SubmitType = submitType,
-                Message = "Submit success"
-            });
+                // Các lỗi như: File trống, không phải thành viên... được ném ra từ Service
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // =========================
@@ -362,42 +112,14 @@ namespace LmsMini.Api.Controllers
         [HttpGet("submission-files/{submitFileId}/download")]
         public async Task<IActionResult> DownloadMySubmissionFile(string classroomId, string submitFileId)
         {
-            var (studentId, err) = await GetStudentIdOrError();
-            if (err != null) return err;
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var memberErr = await EnsureStudentIsMember(classroomId, studentId);
-            if (memberErr != null) return memberErr;
+            var info = await _assignmentService.GetMySubmissionFileForDownloadAsync(classroomId, submitFileId, userId);
+            if (info == null) return NotFound("Submission file not found.");
 
-            var fileRec = await _context.SubmitFiles
-                .AsNoTracking()
-                .Include(sf => sf.Submit)
-                .ThenInclude(s => s!.Assign)
-                .FirstOrDefaultAsync(sf =>
-                    sf.FileId == submitFileId
-                    && sf.Submit != null
-                    && sf.Submit.StudentId == studentId
-                    && sf.Submit.Assign != null
-                    && sf.Submit.Assign.ClassroomId == classroomId);
-
-            if (fileRec == null || string.IsNullOrWhiteSpace(fileRec.FilePath))
-                return NotFound("Submission file not found.");
-
-            var physicalPath = BuildPhysicalPath(fileRec.FilePath);
-
-            if (!System.IO.File.Exists(physicalPath))
-                return NotFound("Physical file not found on server.");
-
-            // THAY ĐỔI TẠI ĐÂY: Tương tự ép kiểu tải về
-            var contentType = "application/octet-stream";
-
-            var downloadName = string.IsNullOrWhiteSpace(fileRec.FileName)
-                ? Path.GetFileName(physicalPath)
-                : fileRec.FileName;
-
-            // THAY ĐỔI TẠI ĐÂY: Thêm Header Content-Disposition
-            Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{Uri.EscapeDataString(downloadName)}\"");
-
-            return PhysicalFile(physicalPath, contentType, downloadName, enableRangeProcessing: true);
+            Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{Uri.EscapeDataString(info.DownloadName)}\"");
+            return PhysicalFile(info.PhysicalPath, info.ContentType, info.DownloadName);
         }
     }
 

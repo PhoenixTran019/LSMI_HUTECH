@@ -106,7 +106,7 @@ namespace LmsMini.Api.Controllers
 
             // Truyền đầy đủ định danh vào Service để tránh việc dùng FileId của bài học này tải cho bài học kia
             var fileInfo = await _studentClassroomService.GetLessonFileForDownloadAsync(
-                classroomId, lessonId, fileId, currentStudentId, _env.WebRootPath);
+                classroomId, lessonId, fileId, currentStudentId);
 
             if (fileInfo == null)
                 return NotFound("Tài liệu không tồn tại, hoặc không thuộc bài học/lớp học này.");
