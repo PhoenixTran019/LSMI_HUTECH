@@ -1,4 +1,4 @@
-﻿using LmsMini.Domain.Domain.Entities;
+﻿using LmsMini.Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;

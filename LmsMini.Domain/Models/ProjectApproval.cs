@@ -1,0 +1,23 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace LmsMini.Domain.Models;
+
+public partial class ProjectApproval
+{
+    public string ApprovalId { get; set; } = null!;
+
+    public string? RegistId { get; set; }
+
+    public string? ApproverId { get; set; }
+
+    public string? Decision { get; set; }
+
+    public string? Comments { get; set; }
+
+    public DateTime? ApprovalDate { get; set; }
+
+    public virtual DepartmentStaff? Approver { get; set; }
+
+    public virtual ProjectAssign? Regist { get; set; }
+}

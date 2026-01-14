@@ -8,8 +8,9 @@ namespace LmsMini.Application.DTOs.Auth
 {
     public class LoginResponseDto
     {
-        public string Token { get; set; }
-        public string Role { get; set; }
-        public string RedirectUrl { get; set; }
+        public string? User_name { get; set; }
+        public string? Token { get; set; }
+        public string? Role { get; set; }
+        public string? RedirectUrl { get; set; }
     }
 }

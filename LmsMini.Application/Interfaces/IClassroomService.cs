@@ -1,0 +1,34 @@
+﻿using LmsMini.Application.DTOs.Classroom;
+using LmsMini.Application.DTOs.Lesson;
+using LmsMini.Application.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace LmsMini.Application.Interfaces
+{
+    public interface IClassroomService
+    {
+        
+
+        Task<bool> CreateClassroomAsync (CreateClassroomDto dto, string staffId);
+
+        Task<List<ClassroomCardViewModel>> GetDashboardClassroomsAsync(ClassroomFilterDto filter, string role, string userId);
+
+        Task<bool> AddMemberToClassroomAsync(string classroomId, string memberUserId, string role);
+
+        Task<bool> UpdateMemberRoleAsync (string classroomId, string userId, string newRole);
+
+        Task<ClassroomOverviewDto> GetOverviewAsync (string classroomId, string userId, string role);
+
+        Task<IEnumerable<MemberInfoDto>> GetClassroomMembersAsync(string classroomId);
+
+        Task<bool> UpdateClassroomAsync(string classroomId, UpdateClassroomDto dto, string staffId);
+
+        Task<bool> DeleteClassroomAsync(string classroomId, string staffId, string webRootPath);
+
+        
+    }
+}
